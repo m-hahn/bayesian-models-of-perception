@@ -1,3 +1,5 @@
+# Created from original upstream file: RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py
+#assert False, "doesn't fit so well"
 import getObservations
 import glob
 import json
@@ -9,7 +11,7 @@ import random
 import sys
 import torch
 from getObservations import retrieveObservations
-from l1IntervalEstimator import L1Estimator
+from mapIntervalEstimator7_DebugFurtherAug import MAPIntervalEstimator
 from matplotlib import rc
 from util import MakeFloatTensor
 from util import MakeLongTensor
@@ -26,15 +28,18 @@ __file__ = __file__.split("/")[-1]
 OPTIMIZER_VERBOSE = False
 
 P = int(sys.argv[1])
-assert P > 0
+assert P == 0
 FOLD_HERE = int(sys.argv[2])
 REG_WEIGHT = float(sys.argv[3])
 GRID = int(sys.argv[4])
 FIT = sys.argv[5] #f"SimulateSynthetic_Parameterized.py_8_12345_UNIFORM_UNIFORM.txt"
 
+#assert "400_0_" in FIT, "for now focus on these to diagnose issues"
+
 #if len( glob.glob(f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt")) > 0:
 #   assert False, f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
 
+#assert "_400_0_4567" in FIT, "for now focus on these"
 
 ##############################################
 
@@ -133,37 +138,33 @@ x_set = sorted(list(set(xValues.cpu().numpy().tolist())))
 #############################################################
 # Part: Configure the appropriate estimator for minimizing the loss function
 SCALE=1
-L1Estimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE)
+KERNEL_WIDTH = 0.1
+
+averageNumberOfNewtonSteps = 2
+W = 800
+
+MAPIntervalEstimator.set_parameters(KERNEL_WIDTH=KERNEL_WIDTH, MIN_GRID=MIN_GRID, MAX_GRID=MAX_GRID, SCALE=SCALE, W=W, GRID=GRID, OPTIMIZER_VERBOSE=False)
 
 #############################################################
 # Part: Initialize the model
 init_parameters = {}
 init_parameters["sigma2_stimulus"] = MakeFloatTensor([0]).view(1)
 init_parameters["log_motor_var"] = MakeFloatTensor([3]).view(1)
-init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-6]).view(len(condition_ids))
+init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-3]).view(len(condition_ids))
 init_parameters["mixture_logit"] = MakeFloatTensor([-1]).view(1)
 init_parameters["prior"] = MakeZeros(GRID)
 init_parameters["volume"] = MakeZeros(GRID)
 for _, y in init_parameters.items():
     y.requires_grad = True
 
+#import counterfactualComponents
+#counterfactualComponents.setEncoding("BIMODAL2", init_parameters, grid, MAX_GRID)
+#counterfactualComponents.setPrior("UNIMODAL2", init_parameters, grid, MAX_GRID)
+
 FILE = f"logs/CROSSVALID/{__file__}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt"
 assert "volume" in init_parameters
 for _, y in init_parameters.items():
     y.requires_grad = True
-
-
-
-print(FIT)
-FIT_parsed = FIT[:-4].split("_") #SimulateSynthetic2_DenseRemington_OtherNoiseLevels_VarySize.py_400_2_4567_N10000_UNIFORM_UNIMODAL.txt
-PRIOR = FIT_parsed[-2]
-ENCODING = FIT_parsed[-1]
-import counterfactualComponents 
-ground_truth_parameters = {}
-counterfactualComponents.setPrior(PRIOR, ground_truth_parameters, grid, MAX_GRID)
-counterfactualComponents.setEncoding(ENCODING, ground_truth_parameters, grid, MAX_GRID)
-
-
 
 #############################################################
 # Part: Initialize optimizer.
@@ -192,7 +193,7 @@ def SQUARED_STIMULUS_SIMILARITY(x):
     akin to 1-x^2 for interval spaces, possibly defined with additional factors
     to normalize by the size of the space. The resulting values are exponentiated
     and normalized to obtain a Gaussian or von Mises density."""
-    assert (x<=STIMULUS_SPACE_VOLUME).all(), x.max()
+    #assert (x<=STIMULUS_SPACE_VOLUME).all(), x.max()
     return -((x/STIMULUS_SPACE_VOLUME).pow(2))/2
 def SQUARED_SENSORY_SIMILARITY(x):
     """ Given a difference x between two stimuli, compute the `similarity` in
@@ -211,12 +212,7 @@ def SQUARED_SENSORY_SIMILARITY(x):
 def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, showLikelihood=False, grid=grid, responses_=None, parameters=None, computePredictions=False, subject=None, sigma_stimulus=None, sigma2_stimulus=None, duration_=None, folds=None, lossReduce='mean'):
 
  # Part: Obtain the motor variance by exponentiating the appropriate model parameter
- motor_variance = torch.exp(- parameters["log_motor_var"]) #+1e-6
-
- # Note re RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize.py
- # In rare cases, an extremely (spuriously) low motor noise can exploit imprecision in estimation of the normalizing constant to (spuriously) reduce the loss, even make it negative.
- # This is prevented by adding 1e-7 to lower-bound the motor variance.
-
+ motor_variance = torch.exp(- parameters["log_motor_var"])
  # Part: Obtain the sensory noise variance. We parameterize it as a fraction of the squared volume of the size of the sensory space
  sigma2 = (SENSORY_SPACE_VOLUME * SENSORY_SPACE_VOLUME)*torch.sigmoid(sigma_logit)
  # Part: Obtain the transfer function as the cumulative sum of the discretized resource allocation (referred to as `volume` element due to the geometric interpretation by Wei&Stocker 2015)
@@ -257,27 +253,21 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
     assert False
     likelihoods = torch.matmul(sensory_likelihoods, stimulus_likelihoods)
 
-
-  if likelihoods.isnan().any():
-      assert False, likelihoods
- 
-
   ## Compute posterior using Bayes' rule. As described in the paper, the posterior is computed
   ## in the discretized stimulus space.
   posterior = prior.unsqueeze(1) * likelihoods.t()
   posterior = posterior / posterior.sum(dim=0, keepdim=True)
 
-  if posterior.isnan().any():
-      assert False, posterior
-
   ## Compute the estimator for each m in the discretized sensory space.
-  bayesianEstimate = L1Estimator.apply(grid[grid_indices_here], posterior)/GRID*MAX_GRID
+  bayesianEstimate = MAPIntervalEstimator.apply(grid[grid_indices_here], posterior)
 
-  if bayesianEstimate.isnan().any():
-      assert False, bayesianEstimate
 
-  assert bayesianEstimate.max() <= 1.1*MAX_GRID, bayesianEstimate
-  assert bayesianEstimate.min() >= 0.9*MIN_GRID, bayesianEstimate
+  #derivative = torch.autograd.grad(bayesianEstimate.sum(), [posterior], create_graph=True)[0]
+  #print(derivative, derivative.abs().max())
+
+  # To deal with the boundary issue, we just allow the estimate to over- or underflow
+  #assert bayesianEstimate.max() <= 1.1*MAX_GRID
+  #assert bayesianEstimate.min() >= 0.9*MIN_GRID
 
   ## Compute the motor likelihood
   motor_variances = motor_variance
@@ -285,9 +275,6 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
   ## `error' refers to the stimulus similarity between the estimator assigned to each m and
   ## the observations found in the dataset.
   ## The Gaussian or von Mises motor likelihood is obtained by exponentiating and normalizing
-  error = (SQUARED_STIMULUS_SIMILARITY((bayesianEstimate.unsqueeze(0) - responses.unsqueeze(1)))/motor_variances.unsqueeze(0))
-  if error.isnan().any():
-     assert False, error
 
   COMPUTE_CATEGORICAL = True
   COMPUTE_USUAL = False
@@ -365,13 +352,7 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
      bayesianEstimate_avg_byStimulus = None
      bayesianEstimate_sd_byStimulus = None
      attraction = None
-
-
  if float(loss) != float(loss):
-     print(bayesianEstimate)
-     print(error)
-     print(log_normalizing_constants)
-     print(motor_variances)
      print("NAN!!!!")
      quit()
  return loss, bayesianEstimate_avg_byStimulus, bayesianEstimate_sd_byStimulus, attraction
@@ -403,10 +384,8 @@ def model(grid):
      figure, axis = plt.subplots(2, 3)
      grid_cpu = grid.detach().cpu()
      axis[0,0].scatter(grid_cpu, volume.detach().cpu())
-     axis[0,0].scatter(grid_cpu, torch.softmax(ground_truth_parameters["volume"], dim=0).detach().cpu(), color="orange")
      axis[0,0].plot([grid_cpu[0], grid_cpu[-1]], [0,0])
      axis[1,0].scatter(grid_cpu, prior.detach().cpu())
-     axis[1,0].scatter(grid_cpu, torch.softmax(ground_truth_parameters["prior"], dim=0).detach().cpu(), color="orange")
      axis[1,0].plot([grid_cpu[0], grid_cpu[-1]], [0,0])
      x_set = sorted(list(set(xValues.cpu().numpy().tolist())))
 
@@ -423,9 +402,9 @@ def model(grid):
      loss += loss_model
 
 
-   if iteration % 500 == 0 and iteration > 0:
+   if iteration % 500 == 0:
      ## Visualization
-#     axis[1,0].set_xlim(0.4, 1.2)
+#     axis[1,0].set_xlim(MIN_GRID, MAX_GRID)
      plt.tight_layout()
 #     plt.show()
      savePlot(f"figures/{__file__}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.pdf")
@@ -449,9 +428,9 @@ def model(grid):
 
    ## Normalize the loss (i.e., negative log-likelihood) by the number of observations
    loss = loss * (1/observations_x.size()[0])
-   if iteration % 10 == 0:
-     print("LOSS", loss)
-     print(parameters["volume"], parameters["volume"].grad)
+   #if iteration % 10 == 0:
+     #print("LOSS", loss)
+     #print(parameters["volume"], parameters["volume"].grad)
    ## Add regularization
    loss = loss + REG_WEIGHT * regularizer_total
 
@@ -506,14 +485,14 @@ def model(grid):
        ## If the loss has not improved in a while, decay the step size
    if iteration % 100 == 0 and iteration > 0:
        if len(averageLossOver100) > 2 and float(averageLossOver100[-2]) >= averageLossOver100[-3]-1e-5:
-         learning_rate *= 0.3
+         learning_rate *= 0.3 #9
          optim = torch.optim.SGD([y for _, y in init_parameters.items()], lr=learning_rate, momentum=0.3)
    if iteration % 100 == 0 and iteration > 0:
        if len(averageLossOver100) > 2 and float(averageLossOver100[-2]) >= min(averageLossOver100[:-2]):
          noImprovement += 1
        else:
          noImprovement = 0
-       if noImprovement >= 10:
+       if noImprovement >= 10: #40:
            print(float(averageLossOver100[-2]), min(averageLossOver100[:-2]), averageLossOver100)
            print("Stopping")
            break

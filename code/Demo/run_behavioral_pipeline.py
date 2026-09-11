@@ -28,9 +28,9 @@ CONFIG = {
         "loss_dir": "losses",
         "writes_figures": True,
         "scripts": {
-            "map": "RunSynthetic_FreePrior_ZeroTrig_OnSim.py",
-            "l1": "RunSynthetic_FreePrior_L1Loss_OnSim.py",
-            "lp": "RunSynthetic_FreePrior_CosineLoss_OnSim.py",
+            "map": "RunCircular_Free_L0.py",
+            "l1": "RunCircular_Free_L1Loss.py",
+            "lp": "RunCircular_Free_CosineLoss.py",
         },
     },
     "interval": {
@@ -44,9 +44,9 @@ CONFIG = {
         "loss_dir": "losses/Interval",
         "writes_figures": False,
         "scripts": {
-            "map": "RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py",
-            "l1": "RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py",
-            "lp": "RunSynthetic_DenseRemington_FreeEncoding_OnSim_OtherNoiseLevels_VarySize_Round2.py",
+            "map": "RunInterval_Free_L0_Round2.py",
+            "l1": "RunInterval_Free_L1_Round2.py",
+            "lp": "RunInterval_Free_Lp_Round2.py",
         },
     },
 }

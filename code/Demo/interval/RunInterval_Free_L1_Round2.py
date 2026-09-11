@@ -1,7 +1,4 @@
-import sys
-#if "WEBER" not in sys.argv[5]:
- #   assert False
-
+# Created from original upstream file: RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py
 import getObservations
 import glob
 import json
@@ -13,7 +10,7 @@ import random
 import sys
 import torch
 from getObservations import retrieveObservations
-from lpEstimator import LPEstimator
+from l1IntervalEstimator import L1Estimator
 from matplotlib import rc
 from util import MakeFloatTensor
 from util import MakeLongTensor
@@ -38,19 +35,6 @@ FIT = sys.argv[5] #f"SimulateSynthetic_Parameterized.py_8_12345_UNIFORM_UNIFORM.
 
 #if len( glob.glob(f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt")) > 0:
 #   assert False, f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
-
-#assert "WEBER" in FIT or  "_400_0_4567_" in FIT, "for now focus on these"
-
-
-#if "4567" not in FIT:
-##if "4567" not in FIT and "2357" not in FIT and "2348" not in FIT and "234567" not in FIT and "2345" not in FIT:
-#      assert False, FIT
-#if "N1000_" in FIT or "N2000_" in FIT:
-#      assert False
-#if "BIMODAL" in FIT and "BIMODAL2" not in FIT:
-#    assert False
-#if "UNIFORM.txt" not in FIT:
-#     assert False
 
 
 ##############################################
@@ -150,14 +134,14 @@ x_set = sorted(list(set(xValues.cpu().numpy().tolist())))
 #############################################################
 # Part: Configure the appropriate estimator for minimizing the loss function
 SCALE=1
-LPEstimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE, P=P,  SCALE=SCALE)
+L1Estimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE)
 
 #############################################################
 # Part: Initialize the model
 init_parameters = {}
 init_parameters["sigma2_stimulus"] = MakeFloatTensor([0]).view(1)
 init_parameters["log_motor_var"] = MakeFloatTensor([3]).view(1)
-init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-3]).view(len(condition_ids))
+init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-6]).view(len(condition_ids))
 init_parameters["mixture_logit"] = MakeFloatTensor([-1]).view(1)
 init_parameters["prior"] = MakeZeros(GRID)
 init_parameters["volume"] = MakeZeros(GRID)
@@ -228,7 +212,12 @@ def SQUARED_SENSORY_SIMILARITY(x):
 def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, showLikelihood=False, grid=grid, responses_=None, parameters=None, computePredictions=False, subject=None, sigma_stimulus=None, sigma2_stimulus=None, duration_=None, folds=None, lossReduce='mean'):
 
  # Part: Obtain the motor variance by exponentiating the appropriate model parameter
- motor_variance = torch.exp(- parameters["log_motor_var"])
+ motor_variance = torch.exp(- parameters["log_motor_var"]) #+1e-6
+
+ # Note re RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize.py
+ # In rare cases, an extremely (spuriously) low motor noise can exploit imprecision in estimation of the normalizing constant to (spuriously) reduce the loss, even make it negative.
+ # This is prevented by adding 1e-7 to lower-bound the motor variance.
+
  # Part: Obtain the sensory noise variance. We parameterize it as a fraction of the squared volume of the size of the sensory space
  sigma2 = (SENSORY_SPACE_VOLUME * SENSORY_SPACE_VOLUME)*torch.sigmoid(sigma_logit)
  # Part: Obtain the transfer function as the cumulative sum of the discretized resource allocation (referred to as `volume` element due to the geometric interpretation by Wei&Stocker 2015)
@@ -269,16 +258,27 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
     assert False
     likelihoods = torch.matmul(sensory_likelihoods, stimulus_likelihoods)
 
+
+  if likelihoods.isnan().any():
+      assert False, likelihoods
+ 
+
   ## Compute posterior using Bayes' rule. As described in the paper, the posterior is computed
   ## in the discretized stimulus space.
   posterior = prior.unsqueeze(1) * likelihoods.t()
   posterior = posterior / posterior.sum(dim=0, keepdim=True)
 
-  ## Compute the estimator for each m in the discretized sensory space.
-  bayesianEstimate = LPEstimator.apply(grid[grid_indices_here], posterior)
+  if posterior.isnan().any():
+      assert False, posterior
 
-  assert bayesianEstimate.max() <= 1.1*MAX_GRID
-  assert bayesianEstimate.min() >= 0.9*MIN_GRID
+  ## Compute the estimator for each m in the discretized sensory space.
+  bayesianEstimate = L1Estimator.apply(grid[grid_indices_here], posterior)/GRID*MAX_GRID
+
+  if bayesianEstimate.isnan().any():
+      assert False, bayesianEstimate
+
+  assert bayesianEstimate.max() <= 1.1*MAX_GRID, bayesianEstimate
+  assert bayesianEstimate.min() >= 0.9*MIN_GRID, bayesianEstimate
 
   ## Compute the motor likelihood
   motor_variances = motor_variance
@@ -286,6 +286,9 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
   ## `error' refers to the stimulus similarity between the estimator assigned to each m and
   ## the observations found in the dataset.
   ## The Gaussian or von Mises motor likelihood is obtained by exponentiating and normalizing
+  error = (SQUARED_STIMULUS_SIMILARITY((bayesianEstimate.unsqueeze(0) - responses.unsqueeze(1)))/motor_variances.unsqueeze(0))
+  if error.isnan().any():
+     assert False, error
 
   COMPUTE_CATEGORICAL = True
   COMPUTE_USUAL = False
@@ -330,6 +333,16 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
   ## distribution on the full space.
   motor_likelihoods = (1-uniform_part) * motor_likelihoods + (uniform_part / (GRID) + 0*motor_likelihoods)
 
+  LOG_MOTOR_VERSION = False
+  if LOG_MOTOR_VERSION:
+     log_motor_likelihoods2 = (1-uniform_part).log() + log_motor_likelihoods
+     log_motor_likelihoods3 = (uniform_part / (GRID)).log()
+     M = log_motor_likelihoods2.max()
+     motor_likelihoods_log = (((log_motor_likelihoods2 - M).exp() + (log_motor_likelihoods3 - M).exp()).log() + M).exp()
+     print("@@@")
+     print(motor_likelihoods)
+     print(motor_likelihoods_log)
+  
   # Now the loss is obtained by marginalizing out m from the motor likelihood
   if lossReduce == 'mean':
     loss = -torch.gather(input=torch.matmul(motor_likelihoods, likelihoods),dim=1,index=stimulus.unsqueeze(1)).squeeze(1).log().mean()
@@ -353,7 +366,13 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
      bayesianEstimate_avg_byStimulus = None
      bayesianEstimate_sd_byStimulus = None
      attraction = None
+
+
  if float(loss) != float(loss):
+     print(bayesianEstimate)
+     print(error)
+     print(log_normalizing_constants)
+     print(motor_variances)
      print("NAN!!!!")
      quit()
  return loss, bayesianEstimate_avg_byStimulus, bayesianEstimate_sd_byStimulus, attraction

@@ -1,3 +1,5 @@
+# Created from original upstream file: RunSynthetic_FreePrior_ZeroTrig_OnSim.py
+#assert False
 import getObservations
 import glob
 import math
@@ -7,10 +9,9 @@ import os
 import random
 import sys
 import torch
-from torch.optim.lr_scheduler import ExponentialLR
-from l1Estimator import L1Estimator
 from getObservations import retrieveObservations
 from loadGardelle import *
+from mapCircularEstimatorDebug import MAPCircularEstimator
 from matplotlib import rc
 from plotCircularFit import CircularFitPlotter
 from plotCircularFit import should_plot
@@ -18,6 +19,7 @@ from scipy.io import loadmat
 from util import MakeFloatTensor
 from util import MakeLongTensor
 from util import MakeZeros
+from util import ToDevice
 from util import computeCenteredMean
 from util import computeCircularMean
 from util import computeCircularMeanWeighted
@@ -31,13 +33,11 @@ from util import toFactor
 __file__ = __file__.split("/")[-1]
 rc('font', **{'family':'FreeSans'})
 
-OPTIMIZER_VERBOSE = True
-
-
-
+OPTIMIZER_VERBOSE = False
 
 P = int(sys.argv[1])
-assert P == 1
+assert P == 0
+
 FOLD_HERE = int(sys.argv[2])
 REG_WEIGHT = float(sys.argv[3])
 GRID = int(sys.argv[4])
@@ -50,7 +50,7 @@ PLOT_EVERY = int(os.environ.get("BIAS_MODEL_PLOT_EVERY", "1000"))
 #assert "SHIFTED" in FIT
 
 if len( glob.glob(f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt")) > 0:
-    assert False, f"File exists: losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
+   assert False, f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
 
 # Helper Functions dependent on the device
 
@@ -70,8 +70,8 @@ responses = MakeFloatTensor([float(q) for q in responses__])
 observations_x = sample
 observations_y = responses
 
-#assert observations_x.size() == observations_y.size(), observations_x.size()
-#assert observations_x.size() == duration.size(), duration.size()
+assert observations_x.size() == observations_y.size(), observations_x.size()
+assert observations_x.size() == duration.size(), duration.size()
 # Assign folds
 #############################################################
 # Part: Partition data into folds. As described in the paper,
@@ -122,9 +122,8 @@ for _, y in init_parameters.items():
 
 # Initialize optimizer.
 # The learning rate is a user-specified parameter.
-learning_rate=.001
-optim = torch.optim.Adam([y for _, y in init_parameters.items()], lr=learning_rate)
-scheduler = ExponentialLR(optim, gamma=0.9999)
+learning_rate=.02
+optim = torch.optim.SGD([y for _, y in init_parameters.items()], lr=learning_rate, momentum=0.3)
 
 ##############################################
 # Part: Specify `similarity` or `difference` functions.
@@ -163,10 +162,12 @@ def SQUARED_SENSORY_DIFFERENCE(x):
 
 #############################################################
 # Part: Configure the appropriate estimator for minimizing the loss function
-assert P == 1
+# Import the appropriate estimator for minimizing the loss function
 
-# Part: Import/define the appropriate estimator for minimizing the loss function
-L1Estimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE)
+
+
+assert P == 0
+MAPCircularEstimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE, KERNEL_WIDTH=0.1, MIN_GRID=MIN_GRID, MAX_GRID=MAX_GRID)
 
 #############################################################
 # Part: Run the model. This function implements the model itself:
@@ -188,7 +189,6 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
   if subject is not None:
     assert False
   else:
-    assert duration.view(-1).size() == Fold.view(-1).size(), (duration.size(), Fold.size())
     MASK = torch.logical_and(duration==duration_, (Fold.unsqueeze(0) == folds.unsqueeze(1)).any(dim=0))
     stimulus = stimulus_[MASK]
     responses = responses_[MASK]
@@ -223,7 +223,7 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
   posterior = posterior / posterior.sum(dim=0, keepdim=True)
 
   ## Compute the estimator for each m in the discretized sensory space.
-  bayesianEstimate = L1Estimator.apply(grid_indices_here, posterior)
+  bayesianEstimate = MAPCircularEstimator.apply(grid_indices_here, posterior)
 
   ## Compute the motor likelihood
 
@@ -260,7 +260,7 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
      bayesianEstimate_sd_byStimulus = (bayesianEstimate_sd_byStimulus.pow(2) + motor_variance * math.pow(180/math.pi,2)).sqrt()
 
      bayesianEstimate_avg_byStimulus = torch.where((bayesianEstimate_avg_byStimulus-grid).abs()<180, bayesianEstimate_avg_byStimulus, torch.where(bayesianEstimate_avg_byStimulus > 180, bayesianEstimate_avg_byStimulus-360, bayesianEstimate_avg_byStimulus+360))
-     assert float(((bayesianEstimate_avg_byStimulus-grid).abs()).max()) <= 180, float(((bayesianEstimate_avg_byStimulus-grid).abs()).max())
+     assert float(((bayesianEstimate_avg_byStimulus-grid).abs()).max()) < 180, float(((bayesianEstimate_avg_byStimulus-grid).abs()).max())
      posteriorMaxima = grid[posterior.argmax(dim=0)]
      posteriorMaxima = computeCircularMeanWeighted(posteriorMaxima.unsqueeze(1), likelihoods)
      encodingBias = computeCircularMeanWeighted(grid.unsqueeze(1), likelihoods)
@@ -274,12 +274,9 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
      bayesianEstimate_sd_byStimulus = None
      attraction = None
  if float(loss) != float(loss):
-     print("poseterior", posterior)
-     print("F", F)
-     print("sigma2", sigma2)
      print("NAN!!!!")
      quit()
- return loss, bayesianEstimate_avg_byStimulus, bayesianEstimate_sd_byStimulus, attraction, bayesianEstimate, posterior
+ return loss, bayesianEstimate_avg_byStimulus, bayesianEstimate_sd_byStimulus, attraction
 
 ## Pass data to auxiliary script used for retrieving smoothed fits from the dataset
 getObservations.setData(x_set=x_set, observations_y=observations_y, xValues=xValues, duration=duration, grid=grid)
@@ -289,6 +286,7 @@ def model(grid):
   crossLossesBy500 = []
   noImprovement = 0
   global optim, learning_rate
+  averageLossOver100 = [0]
   for iteration in range(10000000):
    parameters = init_parameters
 
@@ -312,11 +310,13 @@ def model(grid):
    trainFolds = [i for i in range(N_FOLDS) if i!=FOLD_HERE]
    testFolds = [FOLD_HERE]
 
+   ## Iterate over the conditions and possibly subjects, if parameters are fitted separately.
+   ## In this dataset, all parameters are fitted across subjects.
    for DURATION in condition_ids:
     CONDITION_INDEX = condition_parameter_index[DURATION]
     for SUBJECT in [1]:
 
-     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=((iteration%100 == 0) or plot_now), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
+     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=((iteration%100 == 0) or plot_now), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
      loss += loss_model
 
      if plot_now:
@@ -335,7 +335,7 @@ def model(grid):
       CONDITION_INDEX = condition_parameter_index[DURATION]
       for SUBJECT in [1]:
 
-       loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%500 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
+       loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%500 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
        crossValidLoss += loss_model
 
    # Regularization
@@ -351,24 +351,31 @@ def model(grid):
    ## Part: A single optimization step
    optim.zero_grad()
    loss.backward()
-
    maximumGradNorm = []
    largestGradNorm = 0
-   ## For monitoring purposes, calculate the size of the gradients
    for w in init_parameters:
      if init_parameters[w].grad is not None:
       maximumGradNorm.append(w)
       gradNormMax = float(init_parameters[w].grad.abs().max())
       maximumGradNorm.append(gradNormMax)
       largestGradNorm = max(largestGradNorm, float(gradNormMax))
+      init_parameters[w].grad.data = torch.sign(init_parameters[w].grad.data)
+   print(largestGradNorm, maximumGradNorm)
 
    optim.step()
+   # Experimental scheme that anneals the learning rate based on changes in NLL over 100 iterations.
+   averageLossOver100[-1] += float(loss) / 100
    if iteration % 10 == 0:
-     print(iteration, loss, init_parameters["sigma_logit"], init_parameters["mixture_logit"], init_parameters["log_motor_var"], torch.exp(-init_parameters["sigma2_stimulus"]), scheduler.get_last_lr()[0])
-     print(largestGradNorm, maximumGradNorm)
+     print(iteration, averageLossOver100[-3:-1], loss, init_parameters["sigma_logit"], "mixture_logit", init_parameters["mixture_logit"], "log_motor_var", init_parameters["log_motor_var"], learning_rate, sys.argv)
+   if iteration % 100 == 0 and iteration > 0:
+       averageLossOver100.append(0)
+
+   ## Part: Monitor convergence of losses, save fitted results, and adjust step size
    if iteration % 500 == 0 and iteration > 0:
+       ## Record losses
        lossesBy500.append(float(loss))
        crossLossesBy500.append(float(crossValidLoss))
+       ## If loss has decreased, save the current fit
        if len(lossesBy500) > 0 and float(crossValidLoss) <= min(crossLossesBy500):
         with open(f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt", "w") as outFile:
             print(float(crossValidLoss), file=outFile)
@@ -378,16 +385,22 @@ def model(grid):
            print("condition_ids", "\t", condition_ids, file=outFile)
            for z, y in init_parameters.items():
                print(z, "\t", y.detach().cpu().numpy().tolist(), file=outFile)
-       if len(lossesBy500) > 1 and float(loss) > lossesBy500[-2]:
-         learning_rate *= 0.2
-         for param_group in optim.param_groups:
-                param_group['lr'] = learning_rate
-
-       if len(lossesBy500) > 1 and float(loss) >= min(lossesBy500[:-1]):
+           print("========", file=outFile)
+           print("\t".join([str(q) for q in maximumGradNorm]), file=outFile)
+       if largestGradNorm < 1e-5:
+          print("Converged to stationary point")
+          break
+   if iteration % 100 == 0 and iteration > 0:
+       if len(averageLossOver100) > 2 and float(averageLossOver100[-2]) >= averageLossOver100[-3]-1e-5:
+         learning_rate *= 0.3
+         optim = torch.optim.SGD([y for _, y in init_parameters.items()], lr=learning_rate, momentum=0.3)
+   if iteration % 100 == 0 and iteration > 0:
+       if len(averageLossOver100) > 2 and float(averageLossOver100[-2]) >= min(averageLossOver100[:-2]):
          noImprovement += 1
        else:
          noImprovement = 0
-       if noImprovement >= 5:
+       if noImprovement >= 10:
+           print(float(averageLossOver100[-2]), min(averageLossOver100[:-2]), averageLossOver100)
            print("Stopping")
            break
 

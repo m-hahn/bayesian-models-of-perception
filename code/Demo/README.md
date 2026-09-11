@@ -21,9 +21,9 @@ Start with one p = 2 fit. Running multiple loss exponents or folds can take cons
 
 Circular variants:
 
-- `RunSynthetic_FreePrior_CosineLoss_OnSim.py`: p >= 2.
-- `RunSynthetic_FreePrior_L1Loss_OnSim.py`: p = 1.
-- `RunSynthetic_FreePrior_ZeroTrig_OnSim.py`: p = 0 / MAP.
+- `RunCircular_Free_CosineLoss.py`: p >= 2.
+- `RunCircular_Free_L1Loss.py`: p = 1.
+- `RunCircular_Free_L0.py`: p = 0 / MAP.
 - `RunGardelle_FreePrior_CosineLoss.py`: native de Gardelle et al. circular-data reproduction.
 - `RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 1 control.
 - `RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 0 / MAP control.
@@ -33,9 +33,9 @@ Interval variants:
 - `RunRemington_Free.py`: native Remington et al. interval-data reproduction for p >= 2.
 - `RunRemington_Free_FreeEncoding_L1_Round2.py`: native Remington et al. interval-data p = 1 control.
 - `RunRemington_Free_Zero.py`: native Remington et al. interval-data p = 0 / MAP control.
-- `RunSynthetic_DenseRemington_FreeEncoding_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p >= 2.
-- `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
-- `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
+- `RunInterval_Free_Lp_Round2.py`: p >= 2.
+- `RunInterval_Free_L1_Round2.py`: p = 1.
+- `RunInterval_Free_L0_Round2.py`: p = 0 / MAP.
 
 Supporting modules from the same upstream source are stored alongside these scripts.
 
@@ -264,7 +264,7 @@ Command:
 
 ```bash
 cd Demo/circular
-python RunSynthetic_FreePrior_CosineLoss_OnSim.py \
+python RunCircular_Free_CosineLoss.py \
   2 0 10.0 180 \
   SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
 ```

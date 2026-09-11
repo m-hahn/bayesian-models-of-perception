@@ -1,3 +1,4 @@
+# Created from original upstream file: RunSynthetic_FreePrior_CosineLoss_OnSim.py
 import getObservations
 import glob
 import math
