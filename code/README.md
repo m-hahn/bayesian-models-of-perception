@@ -50,7 +50,11 @@ python run_behavioral_pipeline.py --help
 ```
 
 The small files in [`Demo/input/`](Demo/input/) illustrate the required CSV
-format only; use a substantive dataset for fitting.
+format only. For a ready-to-run, real-size example, use the
+[N = 1000 simulated circular dataset](Demo/circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt),
+which uses the legacy three-column format and is documented in the demo's
+[Direct Import Trial](Demo/README.md#direct-import-trial). Otherwise, provide
+your own substantive CSV dataset.
 
 ## Questions
 
