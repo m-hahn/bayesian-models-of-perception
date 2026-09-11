@@ -164,7 +164,7 @@ Most legacy runners assert if their expected log or loss file already exists. Mo
 
 ## Demo: Reproduce de Gardelle et al.
 
-The de Gardelle et al. circular dataset is not included. It is publicly available; after obtaining it, place the data file at `circular/data/GARDELLE/data.txt`. This dataset uses the native loader rather than the CSV wrapper above. The raw de Gardelle orientation columns are modulo 180 degrees; the loader converts them into model coordinates by doubling `rot` and `resp_rot` before fitting. It then checks that stimuli and responses are finite and in the circular stimulus space `[0, 360)`, and warns if the observed stimuli do not span that full space within a 1% edge tolerance.
+The de Gardelle et al. circular dataset is not included. It is publicly available; after obtaining it, place the data file at `circular/data/GARDELLE/data.txt`.
 
 Run the reproduction from `Demo/circular`:
 
@@ -178,16 +178,14 @@ This writes:
 - `circular/logs/CROSSVALID/RunGardelle_FreePrior_CosineLoss.py_8_0_10.0_180.txt`
 - `circular/losses/RunGardelle_FreePrior_CosineLoss.py_8_0_10.0_180.txt.txt`
 
-A reference CPU run completed normally and saved:
+A reference CPU run saved:
 
 - training loss: `3.888923406600952`
 - cross-validation loss: `992.94140625`
 - saved checkpoint iteration: `13500`
 - minimum checkpointed cross-validation loss: `991.9083251953125` at iteration `1500`
 
-The upstream repository's saved log for the same command reports training loss `3.8888871669769287`, cross-validation loss `992.8677978515625`, and the same minimum-CV checkpoint at iteration `1500`. The runner, estimator, and utility code in this demo are byte-identical to their upstream counterparts. The externally obtained `data/GARDELLE/data.txt` used for the reference run was also verified against the upstream file. The included loader preserves the upstream loading logic with added bounds checks. The remaining numerical differences are expected small runtime/library drift rather than a data or implementation mismatch.
-
-The upstream repository only provides downsampled target-size variants for p = 0 and p = 1. The demo versions remove that sampling step and use the same complete Gardelle dataset and ten-fold partitioning as the p >= 2 runner:
+At p=0 and p=1:
 
 ```bash
 cd Demo/circular
