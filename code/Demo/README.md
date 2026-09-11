@@ -27,8 +27,8 @@ Circular variants:
   - `RunCircular_Free_L0.py`: p = 0 / MAP.
 - for the original de Gardelle et al data:
   - `RunGardelle_FreePrior_CosineLoss.py`:  p >= 2.
-  - `RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py`: p=1.
-  - `RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py`: p = 0 / MAP.
+  - `RunGardelle_FreePrior_L1Loss.py`: p=1.
+  - `RunGardelle_FreePrior_ZeroTrig.py`: p = 0 / MAP.
 
 Interval variants:
 
@@ -187,18 +187,13 @@ A reference CPU run completed normally and saved:
 
 The upstream repository's saved log for the same command reports training loss `3.8888871669769287`, cross-validation loss `992.8677978515625`, and the same minimum-CV checkpoint at iteration `1500`. The runner, estimator, and utility code in this demo are byte-identical to their upstream counterparts. The externally obtained `data/GARDELLE/data.txt` used for the reference run was also verified against the upstream file. The included loader preserves the upstream loading logic with added bounds checks. The remaining numerical differences are expected small runtime/library drift rather than a data or implementation mismatch.
 
-The p = 0 and p = 1 de Gardelle controls in the original repository are the downsampled target-size scripts. To run the all-levels, target-size-9936 controls that correspond to the saved old-repo outputs:
+The upstream repository only provides downsampled target-size variants for p = 0 and p = 1. The demo versions remove that sampling step and use the same complete Gardelle dataset and ten-fold partitioning as the p >= 2 runner:
 
 ```bash
 cd Demo/circular
-python RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py 0 0 10.0 180 1-2-3-4-5 9936 ''
-python RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py 1 0 10.0 180 1-2-3-4-5 9936 ''
+python RunGardelle_FreePrior_ZeroTrig.py 0 0 10.0 180
+python RunGardelle_FreePrior_L1Loss.py 1 0 10.0 180
 ```
-
-The final empty argument selects the scripts' default seed behavior and reproduces the unseeded legacy filenames. In reference CPU runs:
-
-- p = 0 wrote cross-validation loss `1352.499267578125` at checkpoint `1000`; the original saved output is `1352.4991455078125` at checkpoint `1000`.
-- p = 1 wrote best cross-validation loss `1232.50146484375` at checkpoint `9000`; the original saved output is `1230.20068359375` at checkpoint `10000`.
 
 
 ## Demo: Reproduce Remington et al.
