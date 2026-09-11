@@ -2,130 +2,55 @@
 
 ## Overview
 
-* [code for generic circular spaces](Synthetic/)
-* [code for data from de Gardelle et al 2010](Gardelle/)
-* [code for data from Remington et al 2018, and generic interval spaces](Remington/)
+- [`Demo/`](Demo/) contains the runnable workflow for fitting circular or
+  interval behavioral data. It includes a command-line wrapper,
+  an interactive notebook, example CSV schemas, and the model scripts and data
+  needed for the included reproductions.
+- [`Estimators/`](Estimators/) contains the estimator implementations used by
+  the modeling code.
+- The Python files in this directory are utilities for loading fitted models,
+  collecting dependencies, and summarizing legacy cross-validation results.
 
-The code base is derived from that of Hahn&Wei 2024 (https://gitlab.com/m-hahn/unifying-theory-biases), and uses the same utility scripts.
+The code base is derived from [Hahn & Wei (2024)](https://gitlab.com/m-hahn/unifying-theory-biases)
+and uses the same utility scripts.
 
-## Getting Started
+## Requirements
 
-###  System requirements
-The code has been developed and tested with the following dependencies:
-* Python 3.9.18, with packages listed at the [list of Python packages](requirements.txt). We ran the code in a Conda virtual environment (Conda version 23.7.4).
-* The code can be run on a standard computer on the command line.
-* Optional note: The fitting procedure can be sped up by running on a CUDA-enabled GPU. For this, set `BIAS_MODEL_DEVICE=cuda` and install a version of PyTorch compatible with your CUDA version, following instructions at https://www.pytorch.org/
+The code was developed with Python 3.9.18. The pinned dependencies are listed
+in [`requirements.txt`](requirements.txt): PyTorch, Matplotlib, SciPy, and
+NumPy.
 
-###  Installation guide
-No installation of the code itself is needed, beyond the software dependencies listed above.
-For getting started, we recommend creating a Conda virtual environment: 
+From this directory, a minimal setup is:
 
-```
+```bash
 conda create -n identifiability python=3.9 -y
 conda activate identifiability
-pip install torch==2.5.1 matplotlib==3.9.4 scipy==1.13.1 numpy==2.0.2
+python -m pip install -r requirements.txt
 ```
 
-### Demo: Instructions to run on demo data
+Fitting runs on CPU by default. To use a CUDA-capable GPU, install the matching
+PyTorch build and set `BIAS_MODEL_DEVICE=cuda`.
 
-The demo is in the working directory `Synthetic/`:
+## Fit behavioral data
 
-```
-cd Synthetic/
-```
+See [`Demo/README.md`](Demo/README.md) for the input schema, validation rules,
+CLI and Python APIs, generated outputs, and instructions for reproducing the de
+Gardelle et al. and Remington et al. fits.
 
-We use as demo dataset a [simulated dataset](logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt) with one noise level and 1K trials.
+For an interactive workflow, open
+[`Demo/Fit_Your_Own_Data.ipynb`](Demo/Fit_Your_Own_Data.ipynb). To inspect the
+CLI without running a fit:
 
-In order to fit a model at `p=2` on this data, first delete the existing log:
-
-```
-rm losses/RunSynthetic_FreePrior_CosineLoss_OnSim.py_SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt_2_0_10.0_180.txt.txt
-```
-
-and then run the fitting script:
-
-```
-python3 RunSynthetic_FreePrior_CosineLoss_OnSim.py 2 0 10.0 180 SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
+```bash
+cd Demo
+python run_behavioral_pipeline.py --help
 ```
 
-Expected runtime on a standard laptop or desktop computer: 5-10 minutes
+The small files in [`Demo/input/`](Demo/input/) illustrate the required CSV
+format only; use a substantive dataset for fitting.
 
-Expected output:
+## Questions
 
-```
-more losses/RunSynthetic_FreePrior_CosineLoss_OnSim.py_SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt_2_0_10.0_180.txt.txt
-```
-is expected to produce `44.991607666015625` plus/minus 0.01. Small numerical deviations are possible.
-
-You can plot the model fit by running
-
-```
-python3 RunSynthetic_FreePrior_CosineLoss_OnSim_VIZ.py 2 0 10.0 180 SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
-```
-
-which produces this plot [here](figures/RunSynthetic_FreePrior_CosineLoss_OnSim_VIZ.py_SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt_2_0_10.0_180.pdf).
-
-###  Instructions for use
-
-Here, we provide instructions for use on circular stimulus spaces. All commands are carried out in `Synthetic/`.
-The code expects the de Gardelle et al 2011 dataset to be present. See  [instructions](Synthetic/README.md#original-data).
-
-#### Simulating a dataset
-
-We start by simulating a dataset:
-
-```
-python3 SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py <P> 0 10.0 180 <TRIALS> <PRIOR> <ENCODING> <NOISE_LEVELS>
-```
-
-where
-
-
-* P = 1, 2, 4, 6, 8
-* TRIALS (number of trials) is any positive integer (e.g., 1000, 10000)
-* PRIOR and ENCODING are defined in `counterfactualComponents.py`. Relevant options include `UNIFORM`, `STEEPPERIODIC`, `STEEPSHIFTED`, `FOURIER_<SEED>` (where <SEED> is the seed for sampling Fourier components).
-* NOISE_LEVELS is an ordered string of {2,3,4,5} (e.g., 2345, 25, 3, 345, etc), listing the included sensory noise magnitudes. 2 indicates high noise, 5 indicates low noise.
-
-The command produces a file with path `logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_<P>_<NOISE_LEVELS>_N<TRIALS>_<PRIOR>_<ENCODING>.txt`.
-In the case `P=0`, the script is instead `SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize_ZeroTrig.py`, with otherwise identical arguments.
-
-
-##### Example:
-
-```
-python3 SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py 2 0 10.0 180 1000 UNIFORM FOURIER_42 25
-```
-produces a dataset at ([link](logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_25_N1000_UNIFORM_FOURIER_42.txt)):
-```
-logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_25_N1000_UNIFORM_FOURIER_42.txt
-```
-You can use `CounterfactualModel_VIZ.py` to plot the model from which the data is simulated:
-```
-python CounterfactualModel_VIZ.py 2 0 10.0 180 UNIFORM FOURIER_42 25
-```
-which outputs a plot [here](figures/CounterfactualModel_VIZ.py_25_UNIFORM_FOURIER_42_2_0_10.0_180.pdf).
-
-
-#### Fitting models
-
-*See [demo](#demo-instructions-to-run-on-demo-data) above for a concrete example.*
-
-For P = 2, 4, 6, 8, you can fit the model using
-```
-python3 RunSynthetic_FreePrior_CosineLoss_OnSim.py <P> 0 10.0 180 <NAME_OF_DATASET>
-```
-where `logs/SIMULATED_REPLICATE/<NAME_OF_DATASET>` is the path of the file stored when simulating, and `<P>` is the exponent used for fitting. Note that this is can be distinct from the exponent used for simulating the dataset.
-
-The NLL is stored at
-```
-more losses/RunSynthetic_FreePrior_CosineLoss_OnSim.py_<NAME_OF_DATASET>_<P>_0_10.0_180.txt.txt
-```
-The fitted parameters are stored at
-```
-more logs/CROSSVALID/RunSynthetic_FreePrior_CosineLoss_OnSim.py_<NAME_OF_DATASET>_<P>_0_10.0_180.txt
-```
-
-There are specialized scripts for P=0 and P=1, as detailed in the [list of scripts](Synthetic/README.md).
-
-
-
+Please do not hesitate to contact Michael Hahn at
+[mhahn@lst.uni-saarland.de](mailto:mhahn@lst.uni-saarland.de) with any
+questions. He is very happy to provide advice or help troubleshoot issues.
