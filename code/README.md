@@ -4,15 +4,18 @@
 
 - [`Demo/`](Demo/) contains the runnable workflow for fitting circular or
   interval behavioral data. It includes a command-line wrapper,
-  an interactive notebook, example CSV schemas, and the model scripts and data
-  needed for the included reproductions.
+  an interactive notebook, example CSV schemas, and the model scripts needed
+  for the reproductions. The public de Gardelle et al. and Remington et al.
+  datasets must be obtained separately, as described in the demo README.
 - [`Estimators/`](Estimators/) contains the estimator implementations used by
   the modeling code.
 - The Python files in this directory are utilities for loading fitted models,
   collecting dependencies, and summarizing legacy cross-validation results.
 
-The code base is derived from [Hahn & Wei (2024)](https://gitlab.com/m-hahn/unifying-theory-biases)
-and uses the same utility scripts.
+The model runners and utilities used by the demo come from the
+[`code/` directory of the upstream `identifiability-bayesian-models`
+repository](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code),
+associated with Hahn & Wei (2024).
 
 ## Requirements
 
@@ -51,6 +54,4 @@ format only; use a substantive dataset for fitting.
 
 ## Questions
 
-Please do not hesitate to contact Michael Hahn at
-[mhahn@lst.uni-saarland.de](mailto:mhahn@lst.uni-saarland.de) with any
-questions. He is very happy to provide advice or help troubleshoot issues.
+Please open a repository issue if you have questions or encounter a problem.

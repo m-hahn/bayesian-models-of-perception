@@ -1,21 +1,23 @@
 # Behavioral Data Demo Workflow
 
-This directory contains a self-contained workflow for running the fitting scripts on a new behavioral dataset without editing the copied model code.
+This directory contains a self-contained workflow for running the fitting scripts on a new behavioral dataset without editing the model code.
 
-The copied basis scripts are in:
+The model runners, estimators, and supporting utilities in this demo come from the [`code/` directory of the upstream `identifiability-bayesian-models` repository](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code). They are kept in this directory so the demo can run independently of a separate upstream checkout.
+
+The upstream-derived model code is organized as follows:
 
 - `circular/`: circular stimulus spaces in degrees, based on `Synthetic/`.
-- `interval/`: Remington-style interval stimulus spaces on `[0, 3]`, based on `Remington/`.
+- `interval/`: interval stimulus spaces on `[0, 3]`, based on `Remington/`.
 
-`run_behavioral_pipeline.py` is the only new wrapper. It validates a CSV, writes the legacy three-column file expected by the copied scripts, selects the right copied runner for each requested loss, and launches that runner from the correct directory.
+`run_behavioral_pipeline.py` is the demo-specific wrapper. It validates a CSV, writes the legacy three-column file expected by the upstream scripts, selects the right runner for each requested loss, and launches that runner from the correct directory.
 
 ## Notebook: Fit Your Own Data
 
-For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.ipynb) in Jupyter or [launch it in Google Colab](https://colab.research.google.com/github/m-hahn/bayesian-models-of-perception/blob/main/code/Demo/Fit_Your_Own_Data.ipynb). The notebook walks through uploading a CSV, validating it, configuring one or more fits, reviewing cross-validation losses, and downloading a result bundle.
+For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.ipynb) in Jupyter. To use Google Colab, upload the notebook at [colab.research.google.com](https://colab.research.google.com/). The notebook walks through uploading a CSV, validating it, configuring one or more fits, reviewing cross-validation losses, and downloading a result bundle.
 
 Start with one p = 2 fit. Running multiple loss exponents or folds can take considerably longer. The notebook and CLI call the same validation and execution functions, so their input rules and generated model files are identical.
 
-## Copied Basis Scripts
+## Upstream Model Scripts
 
 Circular variants:
 
@@ -26,7 +28,7 @@ Circular variants:
 - `RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 1 control.
 - `RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 0 / MAP control.
 
-Remington-style interval variants:
+Interval variants:
 
 - `RunRemington_Free.py`: native Remington et al. interval-data reproduction for p >= 2.
 - `RunRemington_Free_FreeEncoding_L1_Round2.py`: native Remington et al. interval-data p = 1 control.
@@ -35,7 +37,14 @@ Remington-style interval variants:
 - `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
 - `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
 
-The helper modules needed by these scripts are copied into the same directories. The copied scripts themselves should be treated as read-only reference code.
+Supporting modules from the same upstream source are stored alongside these scripts. Treat the upstream-derived scripts as read-only reference code.
+
+## External Datasets
+
+The de Gardelle et al. and Remington et al. behavioral datasets are publicly available, but they are not included in this repository. To use the native reproduction scripts, obtain the datasets separately and place them at the paths expected by the loaders:
+
+- de Gardelle: `circular/data/GARDELLE/data.txt`
+- Remington: `interval/data/REMINGTON/Datafiles/RSG_*_100.mat`
 
 ## Input CSV
 
@@ -53,7 +62,7 @@ Column meanings:
 - `stimulus`: target/stimulus value.
 - `response`: observed response value.
 
-Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. Do not pass undoubled axial/orientation values on `[0, 180)` directly. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations. Use condition IDs `1` through `5` so the p >= 2, p = 1, and p = 0 copied circular scripts all see the data.
+Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. Do not pass undoubled axial/orientation values on `[0, 180)` directly. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations. Use condition IDs `1` through `5` so the p >= 2, p = 1, and p = 0 upstream circular scripts all see the data.
 
 Interval data must use the Remington scale `[0, 3]`. Stimulus and response values must be finite and inside that range. Use condition IDs `4` through `9`.
 
@@ -66,9 +75,7 @@ Tiny schema examples are in `input/example_circular.csv` and `input/example_inte
 From this directory:
 
 ```bash
-cd Demo
-PYTHON=/path/to/python-with-torch-matplotlib-numpy-scipy
-$PYTHON run_behavioral_pipeline.py \
+python run_behavioral_pipeline.py \
   --space circular \
   --input-csv input/my_circular_data.csv \
   --p 0 1 2 4 6 8 \
@@ -79,17 +86,17 @@ $PYTHON run_behavioral_pipeline.py \
 For one p = 2 circular fit:
 
 ```bash
-$PYTHON run_behavioral_pipeline.py \
+python run_behavioral_pipeline.py \
   --space circular \
   --input-csv input/my_circular_data.csv \
   --p 2 \
   --dataset-name my-circular-data
 ```
 
-For Remington-style interval fits:
+For interval fits:
 
 ```bash
-$PYTHON run_behavioral_pipeline.py \
+python run_behavioral_pipeline.py \
   --space interval \
   --input-csv input/my_interval_data.csv \
   --p 0 1 2 4 6 8 \
@@ -136,7 +143,7 @@ The wrapper writes converted input files to:
 - `circular/logs/SIMULATED_REPLICATE/`
 - `interval/logs/SIMULATED_REPLICATE/`
 
-The copied scripts write losses and fitted parameters to:
+The model scripts write losses and fitted parameters to:
 
 - `circular/losses/` and `circular/logs/CROSSVALID/`
 - `interval/losses/Interval/` and `interval/logs/CROSSVALID/`
@@ -148,13 +155,13 @@ Most legacy runners assert if their expected log or loss file already exists. Mo
 
 ## Demo: Reproduce de Gardelle et al.
 
-The de Gardelle et al. circular dataset is included in `circular/data/GARDELLE/`. This dataset uses the native loader rather than the CSV wrapper above. The raw de Gardelle orientation columns are modulo 180 degrees; the loader converts them into model coordinates by doubling `rot` and `resp_rot` before fitting. It then checks that stimuli and responses are finite and in the circular stimulus space `[0, 360)`, and warns if the observed stimuli do not span that full space within a 1% edge tolerance.
+The de Gardelle et al. circular dataset is not included. It is publicly available; after obtaining it, place the data file at `circular/data/GARDELLE/data.txt`. This dataset uses the native loader rather than the CSV wrapper above. The raw de Gardelle orientation columns are modulo 180 degrees; the loader converts them into model coordinates by doubling `rot` and `resp_rot` before fitting. It then checks that stimuli and responses are finite and in the circular stimulus space `[0, 360)`, and warns if the observed stimuli do not span that full space within a 1% edge tolerance.
 
 Run the reproduction from `Demo/circular`:
 
 ```bash
 cd Demo/circular
-$PYTHON RunGardelle_FreePrior_CosineLoss.py 8 0 10.0 180
+python RunGardelle_FreePrior_CosineLoss.py 8 0 10.0 180
 ```
 
 This writes:
@@ -162,24 +169,24 @@ This writes:
 - `circular/logs/CROSSVALID/RunGardelle_FreePrior_CosineLoss.py_8_0_10.0_180.txt`
 - `circular/losses/RunGardelle_FreePrior_CosineLoss.py_8_0_10.0_180.txt.txt`
 
-In this workspace, using `/Users/mhahn/anaconda3/bin/python3` on CPU, the run completed normally and saved:
+A reference CPU run completed normally and saved:
 
 - training loss: `3.888923406600952`
 - cross-validation loss: `992.94140625`
 - saved checkpoint iteration: `13500`
 - minimum checkpointed cross-validation loss: `991.9083251953125` at iteration `1500`
 
-The original repository's saved log for the same command reports training loss `3.8888871669769287`, cross-validation loss `992.8677978515625`, and the same minimum-CV checkpoint at iteration `1500`. The copied runner, estimator, utility code, and `data/GARDELLE/data.txt` are byte-identical to the original files; the local loader preserves the original loading logic with added bounds checks. The remaining numerical differences are expected small runtime/library drift rather than a data or implementation mismatch.
+The upstream repository's saved log for the same command reports training loss `3.8888871669769287`, cross-validation loss `992.8677978515625`, and the same minimum-CV checkpoint at iteration `1500`. The runner, estimator, and utility code in this demo are byte-identical to their upstream counterparts. The externally obtained `data/GARDELLE/data.txt` used for the reference run was also verified against the upstream file. The included loader preserves the upstream loading logic with added bounds checks. The remaining numerical differences are expected small runtime/library drift rather than a data or implementation mismatch.
 
 The p = 0 and p = 1 de Gardelle controls in the original repository are the downsampled target-size scripts. To run the all-levels, target-size-9936 controls that correspond to the saved old-repo outputs:
 
 ```bash
 cd Demo/circular
-$PYTHON RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py 0 0 10.0 180 1-2-3-4-5 9936 ''
-$PYTHON RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py 1 0 10.0 180 1-2-3-4-5 9936 ''
+python RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py 0 0 10.0 180 1-2-3-4-5 9936 ''
+python RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py 1 0 10.0 180 1-2-3-4-5 9936 ''
 ```
 
-The final empty argument selects the scripts' default seed behavior and reproduces the unseeded legacy filenames. In this workspace:
+The final empty argument selects the scripts' default seed behavior and reproduces the unseeded legacy filenames. In reference CPU runs:
 
 - p = 0 wrote cross-validation loss `1352.499267578125` at checkpoint `1000`; the original saved output is `1352.4991455078125` at checkpoint `1000`.
 - p = 1 wrote best cross-validation loss `1232.50146484375` at checkpoint `9000`; the original saved output is `1230.20068359375` at checkpoint `10000`.
@@ -190,7 +197,7 @@ The p = 1 downsampled control is more sensitive to runtime/library drift than th
 
 The native Remington et al. interval-data runner is included as `interval/RunRemington_Free.py`. It uses the native Remington `.mat` loader rather than the CSV wrapper above. The loader checks that stimuli are finite and in the interval stimulus space `[0, 3]`, checks responses against the same bounds, and warns if the observed stimuli do not span that full space within a 1% edge tolerance.
 
-The Remington et al. Ready-Set-Go gain-1 behavioral files are included under:
+The Remington et al. Ready-Set-Go gain-1 behavioral files are not included. They are publicly available; after obtaining them, place them under:
 
 ```text
 interval/data/REMINGTON/Datafiles/
@@ -202,7 +209,7 @@ Run the p = 8, fold-0 reproduction from `Demo/interval`:
 
 ```bash
 cd Demo/interval
-$PYTHON RunRemington_Free.py 8 0 0.1 200
+python RunRemington_Free.py 8 0 0.1 200
 ```
 
 This writes:
@@ -210,7 +217,7 @@ This writes:
 - `interval/logs/CROSSVALID/RunRemington_Free.py_8_0_0.1_200.txt`
 - `interval/losses/RunRemington_Free.py_8_0_0.1_200.txt.txt`
 
-In this workspace, using `/Users/mhahn/anaconda3/bin/python3` on CPU, the run completed normally and saved:
+A reference CPU run completed normally and saved:
 
 - training loss: `2.755476713180542`
 - cross-validation loss: `2741.94140625`
@@ -224,7 +231,7 @@ The original repository's saved log for the same command reports:
 - saved checkpoint iteration: `4500`
 - minimum checkpointed cross-validation loss: `2741.933349609375` at iteration `4500`
 
-The copied runner, estimator, and utility code are byte-identical to the original files; the local loader preserves the original loading logic with added bounds checks. The reproduced training trajectory differs from the original by at most `0.0000012` over saved checkpoints, and the cross-validation trajectory differs by at most `0.0081` summed NLL.
+The runner, estimator, and utility code in this demo are byte-identical to their upstream counterparts; the included loader preserves the upstream loading logic with added bounds checks. The reproduced training trajectory differs from the upstream result by at most `0.0000012` over saved checkpoints, and the cross-validation trajectory differs by at most `0.0081` summed NLL.
 
 To reproduce the full ten-fold result for p = 8, rerun the same command with fold IDs `0` through `9`. The original repository also has saved `RunRemington_Free.py` results for p values `2`, `4`, `6`, `8`, and `10` with the same `0.1` regularization weight and `200`-point grid.
 
@@ -232,20 +239,20 @@ The p = 0 and p = 1 native Remington controls are:
 
 ```bash
 cd Demo/interval
-$PYTHON RunRemington_Free_Zero.py 0 0 0.1 200
-$PYTHON RunRemington_Free_FreeEncoding_L1_Round2.py 1 0 0.1 200
+python RunRemington_Free_Zero.py 0 0 0.1 200
+python RunRemington_Free_FreeEncoding_L1_Round2.py 1 0 0.1 200
 ```
 
-In this workspace:
+In reference CPU runs:
 
 - p = 1 completed normally and wrote cross-validation loss `2743.12255859375` at checkpoint `9500`; the original saved output is `2743.127685546875` at checkpoint `10000`.
-- p = 0 was run as a bounded trajectory check through checkpoint `10500`, because the original saved p = 0 endpoint is checkpoint `539500` and takes several hours on CPU. At checkpoint `10500`, the local run wrote cross-validation loss `2745.314453125`; the original trajectory at the same checkpoint is `2745.314208984375`.
+- p = 0 was run as a bounded trajectory check through checkpoint `10500`, because the original saved p = 0 endpoint is checkpoint `539500` and takes several hours on CPU. At checkpoint `10500`, the reference run wrote cross-validation loss `2745.314453125`; the original trajectory at the same checkpoint is `2745.314208984375`.
 
 The p = 0 command is therefore verified to run and to match the early original trajectory, but the full historical p = 0 endpoint was not rerun here.
 
 ## Direct Import Trial
 
-The copied circular p = 2 runner was tested from `Demo/circular` on:
+The upstream-derived circular p = 2 runner was tested from `Demo/circular` on:
 
 `logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt`
 
@@ -253,9 +260,9 @@ Command:
 
 ```bash
 cd Demo/circular
-$PYTHON RunSynthetic_FreePrior_CosineLoss_OnSim.py \
+python RunSynthetic_FreePrior_CosineLoss_OnSim.py \
   2 0 10.0 180 \
   SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
 ```
 
-It completed normally in this workspace with `/Users/mhahn/anaconda3/bin/python3` and wrote a loss value of `44.991607666015625`.
+A reference CPU run completed normally and wrote a loss value of `44.991607666015625`.
