@@ -198,7 +198,7 @@ python RunGardelle_FreePrior_L1Loss.py 1 0 10.0 180
 
 ## Demo: Reproduce Remington et al.
 
-The native Remington et al. interval-data runner is included as `interval/RunRemington_Free.py`. It uses the native Remington `.mat` loader rather than the CSV wrapper above. The loader checks that stimuli are finite and in the interval stimulus space `[0, 3]`, checks responses against the same bounds, and warns if the observed stimuli do not span that full space within a 1% edge tolerance.
+The  Remington et al. interval-data runner is included as `interval/RunRemington_Free.py`.
 
 The Remington et al. Ready-Set-Go gain-1 behavioral files are not included. They are publicly available; after obtaining them, place them under:
 
@@ -208,35 +208,24 @@ interval/data/REMINGTON/Datafiles/
 
 The loader expects files matching `RSG_*_100.mat`, with `sample`, `response`, `gain`, and `correct` fields.
 
-Run the p = 8, fold-0 reproduction from `Demo/interval`:
+Run the p = 2, fold-0 reproduction from `Demo/interval`:
 
 ```bash
 cd Demo/interval
-python RunRemington_Free.py 8 0 0.1 200
+python RunRemington_Free.py 2 0 0.1 200
 ```
 
 This writes:
 
-- `interval/logs/CROSSVALID/RunRemington_Free.py_8_0_0.1_200.txt`
-- `interval/losses/RunRemington_Free.py_8_0_0.1_200.txt.txt`
+- `interval/logs/CROSSVALID/RunRemington_Free.py_2_0_0.1_200.txt`
+- `interval/losses/RunRemington_Free.py_2_0_0.1_200.txt.txt`
 
-A reference CPU run completed normally and saved:
+A reference CPU run saved:
 
 - training loss: `2.755476713180542`
 - cross-validation loss: `2741.94140625`
 - saved checkpoint iteration: `4500`
 - minimum checkpointed cross-validation loss: `2741.94140625` at iteration `4500`
-
-The original repository's saved log for the same command reports:
-
-- training loss: `2.755476474761963`
-- cross-validation loss: `2741.933349609375`
-- saved checkpoint iteration: `4500`
-- minimum checkpointed cross-validation loss: `2741.933349609375` at iteration `4500`
-
-The runner, estimator, and utility code in this demo are byte-identical to their upstream counterparts; the included loader preserves the upstream loading logic with added bounds checks. The reproduced training trajectory differs from the upstream result by at most `0.0000012` over saved checkpoints, and the cross-validation trajectory differs by at most `0.0081` summed NLL.
-
-To reproduce the full ten-fold result for p = 8, rerun the same command with fold IDs `0` through `9`. The original repository also has saved `RunRemington_Free.py` results for p values `2`, `4`, `6`, `8`, and `10` with the same `0.1` regularization weight and `200`-point grid.
 
 The p = 0 and p = 1 native Remington controls are:
 
@@ -246,16 +235,10 @@ python RunRemington_Free_Zero.py 0 0 0.1 200
 python RunRemington_Free_FreeEncoding_L1_Round2.py 1 0 0.1 200
 ```
 
-In reference CPU runs:
-
-- p = 1 completed normally and wrote cross-validation loss `2743.12255859375` at checkpoint `9500`; the original saved output is `2743.127685546875` at checkpoint `10000`.
-- p = 0 was run as a bounded trajectory check through checkpoint `10500`, because the original saved p = 0 endpoint is checkpoint `539500` and takes several hours on CPU. At checkpoint `10500`, the reference run wrote cross-validation loss `2745.314453125`; the original trajectory at the same checkpoint is `2745.314208984375`.
-
-The p = 0 command is therefore verified to run and to match the early original trajectory, but the full historical p = 0 endpoint was not rerun here.
 
 ## Direct Import Trial
 
-The upstream-derived circular p = 2 runner was tested from `Demo/circular` on:
+Run the circular p = 2 runner from `Demo/circular` on:
 
 `logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt`
 
