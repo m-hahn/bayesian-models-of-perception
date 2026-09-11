@@ -32,7 +32,7 @@ python -m pip install -r requirements.txt
 ```
 
 Fitting runs on CPU by default. To use a CUDA-capable GPU, install the matching
-PyTorch build and set `BIAS_MODEL_DEVICE=cuda`.
+PyTorch build and set `BIAS_MODEL_DEVICE=cuda`. In our experience, model fitting is typically much faster on GPU, so we encourage using that setup if you have the hardware available.
 
 ## Fit behavioral data
 
