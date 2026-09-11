@@ -21,21 +21,25 @@ Start with one p = 2 fit. Running multiple loss exponents or folds can take cons
 
 Circular variants:
 
-- `RunSynthetic_FreePrior_CosineLoss_OnSim.py`: p >= 2.
-- `RunSynthetic_FreePrior_L1Loss_OnSim.py`: p = 1.
-- `RunSynthetic_FreePrior_ZeroTrig_OnSim.py`: p = 0 / MAP.
-- `RunGardelle_FreePrior_CosineLoss.py`: native de Gardelle et al. circular-data reproduction.
-- `RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 1 control.
-- `RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py`: native de Gardelle downsampled p = 0 / MAP control.
+- for your own data (or synthetic data):
+  - `RunSynthetic_FreePrior_CosineLoss_OnSim.py`: p >= 2.
+  - `RunSynthetic_FreePrior_L1Loss_OnSim.py`: p = 1.
+  - `RunSynthetic_FreePrior_ZeroTrig_OnSim.py`: p = 0 / MAP.
+- for the original de Gardelle et al data:
+  - `RunGardelle_FreePrior_CosineLoss.py`:  p >= 2.
+  - `RunGardelle_FreePrior_L1Loss_Downsampled_TargetSize.py`: p=1.
+  - `RunGardelle_FreePrior_ZeroTrig_Downsampled_TargetSize.py`: p = 0 / MAP.
 
 Interval variants:
 
-- `RunRemington_Free.py`: native Remington et al. interval-data reproduction for p >= 2.
-- `RunRemington_Free_FreeEncoding_L1_Round2.py`: native Remington et al. interval-data p = 1 control.
-- `RunRemington_Free_Zero.py`: native Remington et al. interval-data p = 0 / MAP control.
-- `RunSynthetic_DenseRemington_FreeEncoding_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p >= 2.
-- `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
-- `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
+- for your own data (or synthetic data)
+  - `RunSynthetic_DenseRemington_FreeEncoding_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p >= 2.
+  - `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
+  - `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
+- for the original Remington et al data: 
+  - `RunRemington_Free.py`: p >= 2.
+  - `RunRemington_Free_FreeEncoding_L1_Round2.py`: p = 1.
+  - `RunRemington_Free_Zero.py`: p = 0 / MAP.
 
 Supporting modules from the same upstream source are stored alongside these scripts.
 
