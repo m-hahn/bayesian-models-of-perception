@@ -46,18 +46,11 @@ DEVICE = 'cuda'
 FIT = sys.argv[5] #f"SimulateSynthetic_Parameterized.py_8_12345_UNIFORM_UNIFORM.txt"
 PLOT_EVERY = int(os.environ.get("BIAS_MODEL_PLOT_EVERY", "1000"))
 
-noiseConditions = [int(q) for q in FIT.split("_180_")[1].split("_")[1]]
-assert min(noiseConditions) >= 1
-assert max(noiseConditions) < 8
 #assert "UNIMODAL" not in FIT or "SimulateSynthetic_Parameterized.py_8_12345_UNIMODAL2_UNIFORM.txt" in FIT
 #assert "SHIFTED" in FIT
 
 if len( glob.glob(f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt")) > 0:
     assert False, f"File exists: losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
-
-#noiseConditions = "12345"
-#assert "_"+noiseConditions+"_" in FIT
-
 
 # Helper Functions dependent on the device
 
@@ -69,6 +62,8 @@ with open(f"logs/SIMULATED_REPLICATE/{FIT}", "r") as inFile:
 duration__, sample__, responses__ = zip(*data)
 duration__ = MakeLongTensor([int(q) for q in duration__])
 duration = duration__
+condition_ids = sorted(set(duration.detach().cpu().numpy().tolist()))
+condition_parameter_index = {condition: index for index, condition in enumerate(condition_ids)}
 sample = MakeFloatTensor([float(q) for q in sample__])
 responses = MakeFloatTensor([float(q) for q in responses__])
 # Store observations
@@ -118,7 +113,7 @@ x_set = sorted(list(set(xValues.cpu().numpy().tolist())))
 init_parameters = {}
 init_parameters["sigma2_stimulus"] = MakeFloatTensor([0]).view(1)
 init_parameters["log_motor_var"] = MakeFloatTensor([0]).view(1)
-init_parameters["sigma_logit"] = MakeFloatTensor(10*[-3]).view(10)
+init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-3]).view(len(condition_ids))
 init_parameters["mixture_logit"] = MakeFloatTensor([-1]).view(1)
 init_parameters["prior"] = MakeZeros(GRID)
 init_parameters["volume"] = MakeZeros(GRID)
@@ -317,17 +312,16 @@ def model(grid):
    trainFolds = [i for i in range(N_FOLDS) if i!=FOLD_HERE]
    testFolds = [FOLD_HERE]
 
-   for DURATION in range(0,10):
-    if (duration == DURATION).long().sum() == 0:
-       continue
+   for DURATION in condition_ids:
+    CONDITION_INDEX = condition_parameter_index[DURATION]
     for SUBJECT in [1]:
 
-     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][DURATION], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=((iteration%100 == 0) or plot_now), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
+     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=((iteration%100 == 0) or plot_now), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
      loss += loss_model
 
      if plot_now:
        y_set, sd_set = retrieveObservations(x, None, DURATION)
-       plotter.add_condition(DURATION, init_parameters["sigma_logit"][DURATION], volume, bayesianEstimate_model, attraction_model, y_set, bayesianEstimate_sd_byStimulus_model, sd_set)
+       plotter.add_condition(DURATION, init_parameters["sigma_logit"][CONDITION_INDEX], volume, bayesianEstimate_model, attraction_model, y_set, bayesianEstimate_sd_byStimulus_model, sd_set)
      elif iteration % 500 == 0:
        y_set, sd_set = retrieveObservations(x, None, DURATION)
 
@@ -337,12 +331,11 @@ def model(grid):
    if iteration % 500 == 0:
 
      crossValidLoss = 0
-     for DURATION in range(0,10):
-      if (duration == DURATION).long().sum() == 0:
-         continue
+     for DURATION in condition_ids:
+      CONDITION_INDEX = condition_parameter_index[DURATION]
       for SUBJECT in [1]:
 
-       loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][DURATION], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%500 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
+       loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction_model, bayesianEstimate, posterior = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%500 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
        crossValidLoss += loss_model
 
    # Regularization
@@ -382,6 +375,7 @@ def model(grid):
         with open(f"logs/CROSSVALID/{__file__}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt", "w") as outFile:
            print(float(loss), "CrossValid", float(crossValidLoss), "CrossValidLossesBy500", " ".join([str(q) for q in crossLossesBy500]), file=outFile)
            print(iteration, "LossesBy500", " ".join([str(q) for q in lossesBy500]), file=outFile)
+           print("condition_ids", "\t", condition_ids, file=outFile)
            for z, y in init_parameters.items():
                print(z, "\t", y.detach().cpu().numpy().tolist(), file=outFile)
        if len(lossesBy500) > 1 and float(loss) > lossesBy500[-2]:

@@ -41,6 +41,7 @@ class CircularFitPlotter:
         self.grid_size = len(self.grid)
         self.x_set = list(x_set)
         self.stimulus_space_volume = stimulus_space_volume
+        self.condition_colors = dict(CONDITION_COLORS)
 
         plt.rcParams["font.family"] = "DejaVu Sans"
         figure, axis = plt.subplots(1, 7, figsize=(12, 2.2))
@@ -78,7 +79,9 @@ class CircularFitPlotter:
         return _to_numpy(2 * volume * math.sqrt(inverse_variance) * self.grid_size / self.stimulus_space_volume)
 
     def add_condition(self, condition, sigma_logit, volume, estimate, attraction, empirical_bias, estimate_sd=None, empirical_sd=None):
-        color = CONDITION_COLORS.get(condition, "black")
+        if condition not in self.condition_colors:
+            self.condition_colors[condition] = f"C{len(self.condition_colors) % 10}"
+        color = self.condition_colors[condition]
         estimate = _to_numpy(estimate)
         attraction = _to_numpy(attraction)
 

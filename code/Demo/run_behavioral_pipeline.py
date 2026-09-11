@@ -21,8 +21,6 @@ CONFIG = {
         "basis_dir": ROOT / "circular",
         "default_grid": 180,
         "default_condition": 5,
-        "condition_min": 1,
-        "condition_max": 5,
         "stimulus_min": 0.0,
         "stimulus_max": 360.0,
         "stimulus_include_max": False,
@@ -39,8 +37,6 @@ CONFIG = {
         "basis_dir": ROOT / "interval",
         "default_grid": 400,
         "default_condition": 4,
-        "condition_min": 4,
-        "condition_max": 9,
         "stimulus_min": 0.0,
         "stimulus_max": 3.0,
         "stimulus_include_max": True,
@@ -90,7 +86,7 @@ class PipelineResult:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run copied circular or Remington-style interval fitting scripts on behavioral CSV data."
+        description="Run the circular or interval fitting scripts on behavioral CSV data."
     )
     parser.add_argument("--input-csv", required=True, type=Path)
     parser.add_argument("--space", required=True, choices=sorted(CONFIG))
@@ -220,14 +216,6 @@ def load_rows(args, config):
     if not rows:
         raise ValueError("Input CSV has no data rows.")
 
-    conditions = sorted({condition for condition, _, _ in rows})
-    low = config["condition_min"]
-    high = config["condition_max"]
-    invalid = [condition for condition in conditions if condition < low or condition > high]
-    if invalid:
-        raise ValueError(
-            f"{args.space} condition IDs must be integers from {low} to {high}; got {invalid}."
-        )
     warn_if_not_spanning_stimulus_space(args, config, rows)
     warn_if_circular_values_look_axial(args, rows)
     return rows
@@ -346,7 +334,8 @@ def write_legacy_dataset(args, config, rows):
     basis_dir = config["basis_dir"]
     ensure_dirs(basis_dir)
 
-    conditions = "".join(str(condition) for condition in sorted({row[0] for row in rows}))
+    condition_ids = sorted({row[0] for row in rows})
+    conditions = "-".join(str(condition) for condition in condition_ids)
     filename = config["filename_template"].format(
         stem=sanitized_stem(args), conditions=conditions, n=len(rows)
     )

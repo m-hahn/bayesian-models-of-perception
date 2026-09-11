@@ -36,12 +36,6 @@ FIT = sys.argv[5] #f"SimulateSynthetic_Parameterized.py_8_12345_UNIFORM_UNIFORM.
 #   assert False, f"losses/{__file__.replace('_VIZ', '')}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt.txt"
 
 
-FIT_ = FIT.split("_")
-#SimulateSynthetic2_DenseRemington_OtherNoiseLevels_VarySize.py_400_8_47_N5000_UNIMODAL2_UNIFORM.txt
-noiseLevels = [int(q) for q in list(FIT_[-4])]
-assert min(noiseLevels) >= 4
-#assert max(noiseLevels) <= 7
-
 ##############################################
 
 #mask = torch.logical_and((response > 0.0), (response < 3))
@@ -82,6 +76,10 @@ target = target[mask]
 response = response[mask]
 observations_x = observations_x[mask]
 observations_y = observations_y[mask]
+condition_ids = sorted(set(duration.detach().cpu().numpy().tolist()))
+if not condition_ids:
+    raise ValueError("No observations remain after excluding responses outside (0, 3).")
+condition_parameter_index = {condition: index for index, condition in enumerate(condition_ids)}
 
 #############################################################
 # Part: Partition data into folds. As described in the paper,
@@ -142,7 +140,7 @@ L1Estimator.set_parameters(GRID=GRID, OPTIMIZER_VERBOSE=OPTIMIZER_VERBOSE)
 init_parameters = {}
 init_parameters["sigma2_stimulus"] = MakeFloatTensor([0]).view(1)
 init_parameters["log_motor_var"] = MakeFloatTensor([3]).view(1)
-init_parameters["sigma_logit"] = MakeFloatTensor(10*[-6]).view(10)
+init_parameters["sigma_logit"] = MakeFloatTensor(len(condition_ids)*[-6]).view(len(condition_ids))
 init_parameters["mixture_logit"] = MakeFloatTensor([-1]).view(1)
 init_parameters["prior"] = MakeZeros(GRID)
 init_parameters["volume"] = MakeZeros(GRID)
@@ -416,14 +414,12 @@ def model(grid):
    trainFolds = [i for i in range(N_FOLDS) if i!=FOLD_HERE]
    testFolds = [FOLD_HERE]
 
-   ## Iterate over the conditions and possibly subjects, if parameters are fitted separately.
-   ## In this dataset, there is just one condition, and all parameters are fitted across subjects.
-   for DURATION in range(1,10):
-    if (duration == DURATION).long().sum() == 0:
-       continue
+   ## Fit one sensory-noise parameter per observed condition; all other parameters are shared.
+   for DURATION in condition_ids:
+    CONDITION_INDEX = condition_parameter_index[DURATION]
     for SUBJECT in [1]:
      ## Run the model at its current parameter values.
-     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction = computeBias(xValues, init_parameters["sigma_logit"][DURATION], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%100 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
+     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%100 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=trainFolds, lossReduce='sum')
      loss += loss_model
 
 
@@ -437,10 +433,9 @@ def model(grid):
 
    if iteration % 500 == 0 and iteration > 0:
     crossValidLoss = 0
-    for DURATION in range(1,10):
-     if (duration == DURATION).long().sum() == 0:
-       continue
-     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction = computeBias(xValues, init_parameters["sigma_logit"][DURATION], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%100 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
+    for DURATION in condition_ids:
+     CONDITION_INDEX = condition_parameter_index[DURATION]
+     loss_model, bayesianEstimate_model, bayesianEstimate_sd_byStimulus_model, attraction = computeBias(xValues, init_parameters["sigma_logit"][CONDITION_INDEX], prior, volume, n_samples=1000, grid=grid, responses_=observations_y, parameters=parameters, computePredictions=(iteration%100 == 0), subject=None, sigma_stimulus=0, sigma2_stimulus=0, duration_=DURATION, folds=testFolds, lossReduce='sum')
      crossValidLoss += loss_model
 
    ## Part: Regularization
@@ -499,6 +494,7 @@ def model(grid):
         with open(f"logs/CROSSVALID/{__file__}_{FIT}_{P}_{FOLD_HERE}_{REG_WEIGHT}_{GRID}.txt", "w") as outFile:
            print(float(loss), "CrossValid", float(crossValidLoss), "CrossValidLossesBy500", " ".join([str(q) for q in crossLossesBy500]), file=outFile)
            print(iteration, "LossesBy500", " ".join([str(q) for q in lossesBy500]), file=outFile)
+           print("condition_ids", "\t", condition_ids, file=outFile)
            for z, y in init_parameters.items():
                print(z, "\t", y.detach().cpu().numpy().tolist(), file=outFile)
            print("========", file=outFile)

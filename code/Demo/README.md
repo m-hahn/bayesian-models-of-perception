@@ -37,7 +37,7 @@ Interval variants:
 - `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
 - `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
 
-Supporting modules from the same upstream source are stored alongside these scripts. Treat the upstream-derived scripts as read-only reference code.
+Supporting modules from the same upstream source are stored alongside these scripts. The demo runners retain the upstream model logic, with input handling adapted to infer condition labels from each dataset. Use the wrapper to configure runs rather than editing the runners for a particular dataset.
 
 ## External Datasets
 
@@ -58,17 +58,17 @@ condition,stimulus,response
 
 Column meanings:
 
-- `condition`: integer condition/noise-level ID. If omitted, the wrapper fills one default condition.
+- `condition`: integer condition/noise-level label. Labels need not be contiguous or fall within a particular numeric range. If omitted, the wrapper uses one default condition.
 - `stimulus`: target/stimulus value.
 - `response`: observed response value.
 
-Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. Do not pass undoubled axial/orientation values on `[0, 180)` directly. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations. Use condition IDs `1` through `5` so the p >= 2, p = 1, and p = 0 upstream circular scripts all see the data.
+Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. Do not pass undoubled axial/orientation values on `[0, 180)` directly. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations. Each observed condition label gets its own fitted sensory-noise parameter.
 
-Interval data must use the Remington scale `[0, 3]`. Stimulus and response values must be finite and inside that range. Use condition IDs `4` through `9`.
+Interval data must use the interval scale `[0, 3]`. Stimulus and response values must be finite and inside that range. As with circular data, each observed condition label gets its own fitted sensory-noise parameter.
 
 The CSV wrapper rejects out-of-bounds values before writing the legacy input file. It also warns when the observed stimulus values do not span the declared stimulus space within a 1% edge tolerance, since a narrow stimulus range can make fitted priors or resource allocations hard to interpret as properties of the full space. For circular CSVs, it also warns when all stimuli and responses are `<= 180`, because that often indicates undoubled orientation data.
 
-Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets.
+Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets. For a ready-to-run, real-size example, use the [N = 1000 simulated circular dataset](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt). It uses the legacy three-column format and runs directly with a model script, as shown in the [Direct Import Trial](#direct-import-trial).
 
 ## Running
 
@@ -147,6 +147,8 @@ The model scripts write losses and fitted parameters to:
 
 - `circular/losses/` and `circular/logs/CROSSVALID/`
 - `interval/losses/Interval/` and `interval/logs/CROSSVALID/`
+
+Each parameter log records `condition_ids` in sorted order. The entries in `sigma_logit` use that same order, so condition labels do not need to be valid tensor indices.
 
 The circular fitting scripts also write the latest fit diagnostic figure to `circular/figures/` during fitting.
 
