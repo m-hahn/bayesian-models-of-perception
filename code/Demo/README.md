@@ -1,15 +1,15 @@
 # Behavioral Data Demo Workflow
 
-This directory contains a self-contained workflow for running the fitting scripts on a new behavioral dataset without editing the model code.
+This directory contains a self-contained workflow for running the fitting scripts on a new behavioral dataset.
 
-The model runners, estimators, and supporting utilities in this demo come from the [`code/` directory of the upstream `identifiability-bayesian-models` repository](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code). They are kept in this directory so the demo can run independently of a separate upstream checkout.
+The model runners, estimators, and supporting utilities in this demo come from the [`code/` directory of the companion repository of the PNAS 2026 paper](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code). They are kept in this directory so the demo can run independently of that repository.
 
-The upstream-derived model code is organized as follows:
+The model code is organized as follows:
 
 - `circular/`: circular stimulus spaces in degrees, based on `Synthetic/`.
 - `interval/`: interval stimulus spaces on `[0, 3]`, based on `Remington/`.
 
-`run_behavioral_pipeline.py` is the demo-specific wrapper. It validates a CSV, writes the legacy three-column file expected by the upstream scripts, selects the right runner for each requested loss, and launches that runner from the correct directory.
+`run_behavioral_pipeline.py` is the demo-specific wrapper. It validates a CSV, writes the three-column file expected by the scripts, selects the right runner for each requested loss, and launches that runner from the correct directory.
 
 ## Notebook: Fit Your Own Data
 
@@ -17,7 +17,7 @@ For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.
 
 Start with one p = 2 fit. Running multiple loss exponents or folds can take considerably longer. The notebook and CLI call the same validation and execution functions, so their input rules and generated model files are identical.
 
-## Upstream Model Scripts
+## Model Scripts
 
 Circular variants:
 
@@ -37,14 +37,16 @@ Interval variants:
 - `RunSynthetic_DenseRemington_FreeEncoding_L1_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 1.
 - `RunSynthetic_DenseRemington_FreeEncoding_Zero_OnSim_OtherNoiseLevels_VarySize_Round2.py`: p = 0 / MAP.
 
-Supporting modules from the same upstream source are stored alongside these scripts. Treat the upstream-derived scripts as read-only reference code.
+Supporting modules from the same upstream source are stored alongside these scripts.
 
 ## External Datasets
 
-The de Gardelle et al. and Remington et al. behavioral datasets are publicly available, but they are not included in this repository. To use the native reproduction scripts, obtain the datasets separately and place them at the paths expected by the loaders:
+The de Gardelle et al. and Remington et al. behavioral datasets are publicly available, but they are not included in this repository. To use the native reproduction scripts, obtain the datasets separately from the websites of the authors ([de Gardelle et al](https://sites.google.com/site/vincentdegardelle/publications) and [Remington et al](https://jazlab.org/resources/) and place them at the paths expected by the loaders:
 
 - de Gardelle: `circular/data/GARDELLE/data.txt`
 - Remington: `interval/data/REMINGTON/Datafiles/RSG_*_100.mat`
+
+There are loaders set up for those specific data formats, but for your own data, use the CSV format described below.
 
 ## Input CSV
 
@@ -58,15 +60,15 @@ condition,stimulus,response
 
 Column meanings:
 
-- `condition`: integer condition/noise-level ID. If omitted, the wrapper fills one default condition.
+- `condition`: integer ID for the level of internal noise.
 - `stimulus`: target/stimulus value.
 - `response`: observed response value.
 
-Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. Do not pass undoubled axial/orientation values on `[0, 180)` directly. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations. Use condition IDs `1` through `5` so the p >= 2, p = 1, and p = 0 upstream circular scripts all see the data.
+In this version of the code, conditions are understood to denote levels of internal/sensory noise; no other condition manipulations are assumed. Other condition manipulations can be captured by appropriate extensions of the code (such as [here](https://gitlab.com/m-hahn/unifying-theory-biases/-/tree/main/code/Tomassini?ref_type=heads) for external/stimulus noise)
 
-Interval data must use the Remington scale `[0, 3]`. Stimulus and response values must be finite and inside that range. Use condition IDs `4` through `9`.
+Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations.
 
-The CSV wrapper rejects out-of-bounds values before writing the legacy input file. It also warns when the observed stimulus values do not span the declared stimulus space within a 1% edge tolerance, since a narrow stimulus range can make fitted priors or resource allocations hard to interpret as properties of the full space. For circular CSVs, it also warns when all stimuli and responses are `<= 180`, because that often indicates undoubled orientation data.
+Interval data must use the Remington scale `[0, 3]`. Stimulus and response values must be finite and inside that range.
 
 Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets.
 
@@ -191,7 +193,6 @@ The final empty argument selects the scripts' default seed behavior and reproduc
 - p = 0 wrote cross-validation loss `1352.499267578125` at checkpoint `1000`; the original saved output is `1352.4991455078125` at checkpoint `1000`.
 - p = 1 wrote best cross-validation loss `1232.50146484375` at checkpoint `9000`; the original saved output is `1230.20068359375` at checkpoint `10000`.
 
-The p = 1 downsampled control is more sensitive to runtime/library drift than the p = 8 full-data fit, but it follows the same trajectory scale and reaches the same result range.
 
 ## Demo: Reproduce Remington et al.
 
