@@ -20,6 +20,8 @@ and command-line calls use the same validation and execution functions, so their
 and generated model files are identical. In Google Colab, users can optionally
 enable a GPU hardware accelerator.
 
+It is highly recommended that you use the notebook to get acquainted with the codebase.
+
 ## Model Scripts
 
 Circular variants:
