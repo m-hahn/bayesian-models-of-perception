@@ -39,10 +39,17 @@ PyTorch build and set `BIAS_MODEL_DEVICE=cuda`. In our experience, model fitting
 See [`Demo/README.md`](Demo/README.md) for the input schema, validation rules,
 CLI and Python APIs, generated outputs, and instructions for reproducing the de
 Gardelle et al. and Remington et al. fits.
+After each completed CLI fit, the wrapper prints the cross-validation NLL and
+the full paths to the NLL file, fitted-parameter log, and, when enabled,
+diagnostic PDF.
 
 For an interactive workflow, open
-[`Demo/Fit_Your_Own_Data.ipynb`](Demo/Fit_Your_Own_Data.ipynb). To inspect the
-CLI without running a fit:
+[`Demo/Fit_Your_Own_Data.ipynb`](Demo/Fit_Your_Own_Data.ipynb). It walks through
+comparing decision losses and regularization values, checking held-out NLLs,
+and interpreting the inferred prior and encoding. A second controlled exercise
+compares p = 2 and p = 8 on an included dataset with five sensory-noise levels,
+showing how the loss assumption affects shared perceptual structure and
+condition-specific noise estimates. To inspect the CLI without running a fit:
 
 ```bash
 cd Demo
@@ -58,4 +65,7 @@ your own substantive CSV dataset.
 
 ## Questions
 
-Please open a repository issue if you have questions or encounter a problem.
+Please do not hesitate at all to contact Michael Hahn at
+[mhahn@lst.uni-saarland.de](mailto:mhahn@lst.uni-saarland.de) with any
+questions. He is very happy to provide advice or help troubleshoot. You can
+also open a repository issue.
