@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import ast
 import argparse
 import csv
 import math
@@ -69,10 +70,21 @@ class FitResult:
     """Files and headline metric produced for one loss exponent."""
 
     p: int
+    fold: int
+    reg_weight: float
+    grid: int
     cross_validation_loss: Optional[float]
     loss_path: Path
     parameter_log_path: Path
     figure_path: Optional[Path]
+
+    @property
+    def figure_preview_path(self):
+        """PNG rendering of the diagnostic PDF, when a figure was produced."""
+
+        if self.figure_path is None:
+            return None
+        return self.figure_path.with_suffix(".png")
 
 
 @dataclass(frozen=True)
@@ -386,6 +398,10 @@ def run_variant(args, config, fit_name, p):
                 continue
             if path.exists():
                 path.unlink()
+        if figure_path is not None:
+            preview_path = figure_path.with_suffix(".png")
+            if preview_path.exists():
+                preview_path.unlink()
     elif loss_path.exists() or log_path.exists():
         raise FileExistsError(
             f"Output already exists for p={p}. Use --overwrite to rerun: {loss_path} / {log_path}"
@@ -437,12 +453,157 @@ def read_cross_validation_loss(loss_path):
         raise ValueError(f"Loss file does not start with a number: {loss_path}") from exc
 
 
+def read_fitted_profiles(fit, space):
+    """Read the fitted prior, encoding allocation, and noise parameters."""
+
+    import numpy as np
+
+    if space not in CONFIG:
+        raise ValueError(f"space must be one of {sorted(CONFIG)}; got {space!r}.")
+
+    raw = {}
+    condition_ids = ()
+    for line in fit.parameter_log_path.read_text().splitlines()[2:]:
+        if line.startswith("========"):
+            break
+        if "\t" not in line:
+            continue
+        name, value = line.split("\t", 1)
+        name = name.strip()
+        parsed = ast.literal_eval(value.strip())
+        if name == "condition_ids":
+            condition_ids = tuple(parsed)
+        else:
+            raw[name] = np.asarray(parsed, dtype=float)
+
+    def softmax(values):
+        shifted = values - np.max(values)
+        probabilities = np.exp(shifted)
+        return probabilities / probabilities.sum()
+
+    prior = len(raw["prior"]) * softmax(raw["prior"])
+    encoding = len(raw["volume"]) * softmax(raw["volume"])
+    upper = 360.0 if space == "circular" else 3.0
+    grid = np.arange(len(prior)) * upper / len(prior)
+    return {
+        "grid": grid,
+        "upper": upper,
+        "prior": prior,
+        "encoding": encoding,
+        "condition_ids": condition_ids,
+        "raw": raw,
+    }
+
+
+def fitted_profile_roughness(fit, space):
+    """Return mean squared adjacent changes for the prior and encoding."""
+
+    import numpy as np
+
+    profiles = read_fitted_profiles(fit, space)
+
+    def one(values):
+        if space == "circular":
+            values = np.r_[values, values[0]]
+        return float(np.mean(np.diff(values) ** 2))
+
+    return one(profiles["prior"]), one(profiles["encoding"])
+
+
+def plot_errors_by_condition(input_csv, space):
+    """Plot signed response errors and their dispersion for each condition."""
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    args = _make_options(
+        input_csv,
+        space,
+        wrap_circular=(space == "circular"),
+    )
+    rows = load_rows(args, CONFIG[space])
+    conditions = np.asarray([row[0] for row in rows])
+    stimuli = np.asarray([row[1] for row in rows])
+    responses = np.asarray([row[2] for row in rows])
+    errors = responses - stimuli
+    if space == "circular":
+        errors = (errors + 180) % 360 - 180
+
+    condition_ids = sorted(set(conditions))
+    figure, axes = plt.subplots(1, 2, figsize=(11, 3.8))
+    for condition in condition_ids:
+        mask = conditions == condition
+        axes[0].scatter(
+            stimuli[mask],
+            errors[mask],
+            s=8,
+            alpha=0.18,
+            label=str(condition),
+        )
+
+    empirical_sd = [
+        errors[conditions == condition].std(ddof=1)
+        for condition in condition_ids
+    ]
+    axes[0].axhline(0, color="black", linewidth=1)
+    axes[0].set(
+        xlabel="stimulus (degrees)" if space == "circular" else "stimulus",
+        ylabel="signed response error",
+        title="Errors by condition",
+    )
+    axes[0].legend(title="condition", frameon=False, ncol=2)
+    axes[1].plot(condition_ids, empirical_sd, marker="o")
+    axes[1].set(
+        xticks=condition_ids,
+        xlabel="condition",
+        ylabel="empirical error SD",
+        title="Error dispersion by condition",
+    )
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+    figure.tight_layout()
+    return figure, axes
+
+
+def _prepare_included_example(source_name, output_name):
+    source_path = ROOT / "circular" / "logs" / "SIMULATED_REPLICATE" / source_name
+    output_dir = ROOT / "input" / "uploads"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / output_name
+    body = source_path.read_text().split("=======\n", 1)[1].strip().splitlines()
+    with output_path.open("w", newline="") as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow(["condition", "stimulus", "response"])
+        writer.writerows(line.split() for line in body)
+    return output_path
+
+
+def prepare_included_example():
+    """Prepare the N=1000 circular example as a CSV and return its path."""
+
+    return _prepare_included_example(
+        "SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_"
+        "180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt",
+        "tutorial_simulated_circular.csv",
+    )
+
+
+def prepare_five_condition_example():
+    """Prepare the N=5000 five-condition circular example as a CSV."""
+
+    return _prepare_included_example(
+        "SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_"
+        "180_8_12345_N5000_UNIFORM_STEEPPERIODIC.txt",
+        "tutorial_simulated_p8_five_noise_levels.csv",
+    )
+
+
 def _execute_pipeline(args):
     config = CONFIG[args.space]
     rows = load_rows(args, config)
     dataset = summarize_rows(args.input_csv, args.space, rows)
     fit_name, dataset_path = write_legacy_dataset(args, config, rows)
-    print(f"Wrote legacy input: {dataset_path}")
+    print(f"Wrote model input: {dataset_path}")
 
     fits = []
     for p in args.p:
@@ -458,6 +619,9 @@ def _execute_pipeline(args):
         fits.append(
             FitResult(
                 p=p,
+                fold=args.fold,
+                reg_weight=args.reg_weight,
+                grid=args.grid if args.grid is not None else config["default_grid"],
                 cross_validation_loss=cross_validation_loss,
                 loss_path=loss_path,
                 parameter_log_path=log_path,

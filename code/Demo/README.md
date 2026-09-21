@@ -13,7 +13,7 @@ The model code is organized as follows:
 
 ## Notebook: Fit Your Own Data
 
-For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.ipynb) in Jupyter. To use Google Colab, upload the notebook at [colab.research.google.com](https://colab.research.google.com/). The notebook walks through uploading a CSV, validating it, configuring one or more fits, reviewing cross-validation losses, and downloading a result bundle.
+For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.ipynb) in Jupyter. To use Google Colab, upload the notebook at [colab.research.google.com](https://colab.research.google.com/) or directly at https://colab.research.google.com/github/m-hahn/bayesian-models-of-perception/blob/main/code/Demo/Fit_Your_Own_Data.ipynb . The notebook walks through uploading a CSV, validating it, configuring one or more fits, reviewing cross-validation losses, and downloading a result bundle.
 
 The notebook
 and command-line calls use the same validation and execution functions, so their input rules
@@ -134,7 +134,11 @@ Useful options:
 The same workflow can be called from Python or another notebook. Validation is side-effect free:
 
 ```python
-from run_behavioral_pipeline import run_pipeline, validate_csv
+from run_behavioral_pipeline import (
+    plot_errors_by_condition,
+    run_pipeline,
+    validate_csv,
+)
 
 summary = validate_csv("input/my_circular_data.csv", "circular")
 print(summary)
@@ -147,9 +151,14 @@ result = run_pipeline(
     reg_weight=10.0,
 )
 print(result.fits[0].cross_validation_loss)
+
+figure, axes = plot_errors_by_condition(
+    "input/my_circular_data.csv",
+    "circular",
+)
 ```
 
-`run_pipeline` returns a `PipelineResult` containing the validated dataset summary, converted legacy dataset path, and one `FitResult` per requested p value. Each fit result includes the parsed cross-validation loss and paths to its loss file, parameter log, and optional diagnostic figure.
+`run_pipeline` returns a `PipelineResult` containing the validated dataset summary, converted model-input path, and one `FitResult` per requested p value. Each fit result includes its p value, fold, regularization weight, grid size, cross-validation loss, and paths to its loss file, parameter log, and optional diagnostic figure.
 
 ## Outputs
 
@@ -167,7 +176,8 @@ Each parameter log records `condition_ids` in sorted order. The entries in `sigm
 
 The circular and interval CSV fitting scripts also write the latest diagnostic figure to
 `circular/figures/` or `interval/figures/` during fitting. Each new checkpoint
-replaces the preceding figure for that fit. Circular figure generation can be
+replaces the preceding figure for that fit. Each diagnostic PDF has a matching
+PNG preview, which the notebook displays inline. Circular figure generation can be
 disabled with `--plot-every 0`.
 
 After each fit, the wrapper prints the held-out cross-validation negative

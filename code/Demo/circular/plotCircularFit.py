@@ -113,4 +113,6 @@ class CircularFitPlotter:
         self.figure.tight_layout()
         self.figure.subplots_adjust(top=0.8)
         self.figure.savefig(self.output_path, bbox_inches="tight", transparent=True)
+        preview_path = os.path.splitext(self.output_path)[0] + ".png"
+        self.figure.savefig(preview_path, bbox_inches="tight", transparent=True, dpi=150)
         plt.close(self.figure)

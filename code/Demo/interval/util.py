@@ -13,6 +13,12 @@ def savePlot(*args, **kwargs):
       kwargs["transparent"] = True
 #    kwargs["optimize"]=True
     plt.savefig(*args, **kwargs)
+    if args and str(args[0]).lower().endswith(".pdf"):
+      preview_args = (os.path.splitext(str(args[0]))[0] + ".png",) + args[1:]
+      preview_kwargs = dict(kwargs)
+      preview_kwargs.pop("format", None)
+      preview_kwargs.setdefault("dpi", 150)
+      plt.savefig(*preview_args, **preview_kwargs)
     if SHOW_PLOT:
        plt.show()
     plt.close()
@@ -318,4 +324,3 @@ def bringCircularBiasCloseToZero(y_set):
    y_set = torch.where(y_set.abs() < 180, y_set, torch.where(y_set1.abs() < 180, y_set1, y_set2))
    assert (y_set.abs() <= 180).all()
    return y_set
-
