@@ -6,8 +6,8 @@ The model runners, estimators, and supporting utilities in this demo come from t
 
 The model code is organized as follows:
 
-- `circular/`: circular stimulus spaces in degrees, based on `Synthetic/`.
-- `interval/`: interval stimulus spaces on `[0, 3]`, based on `Remington/`.
+- `circular/`: circular stimulus spaces in degrees (based on `Synthetic/` in the PNAS'26 paper's repository).
+- `interval/`: interval stimulus spaces on `[0, 3]` (based on `Remington/` in the PNAS'26 paper's repository).
 
 `run_behavioral_pipeline.py` is the demo-specific wrapper. It validates a CSV, writes the three-column file expected by the scripts, selects the right runner for each requested loss, and launches that runner from the correct directory.
 
@@ -15,7 +15,10 @@ The model code is organized as follows:
 
 For an interactive workflow, open [`Fit_Your_Own_Data.ipynb`](Fit_Your_Own_Data.ipynb) in Jupyter. To use Google Colab, upload the notebook at [colab.research.google.com](https://colab.research.google.com/). The notebook walks through uploading a CSV, validating it, configuring one or more fits, reviewing cross-validation losses, and downloading a result bundle.
 
-Start with one p = 2 fit. Running multiple loss exponents or folds can take considerably longer. The notebook and CLI call the same validation and execution functions, so their input rules and generated model files are identical.
+The notebook
+and command-line calls use the same validation and execution functions, so their input rules
+and generated model files are identical. In Google Colab, users can optionally
+enable a GPU hardware accelerator.
 
 ## Model Scripts
 
@@ -73,9 +76,13 @@ In this version of the code, conditions are understood to denote levels of inter
 
 Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and response values must be finite and inside that range. If your experiment measures orientations modulo 180 degrees, convert each orientation `theta` to `(2 * theta) % 360` before fitting; halve circular model predictions again only when reporting them back as orientations.
 
-Interval data must use the Remington scale `[0, 3]`. Stimulus and response values must be finite and inside that range.
+Interval data must use the interval `[0, 3]`. Stimulus and response values must be finite and inside that range.
 
 Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets. For a ready-to-run, real-size example, use the [N = 1000 simulated circular dataset](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt). It uses the legacy three-column format and runs directly with a model script, as shown in the [Direct Import Trial](#direct-import-trial).
+
+The notebook additionally uses the included
+[N = 5000 circular dataset with five noise levels](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_8_12345_N5000_UNIFORM_STEEPPERIODIC.txt)
+generated at p=8.
 
 ## Running
 
@@ -118,7 +125,8 @@ Useful options:
 - `--fold`: held-out fold, default `0`.
 - `--device cpu` or `--device cuda`: passed as `BIAS_MODEL_DEVICE`.
 - `--plot-every`: write a circular fit figure every N fitting iterations, default `1000`; use `0` to disable.
-- `--wrap-circular`: wrap circular stimulus/response values modulo 360 before fitting.
+- `--quiet`: hide the model runner's iteration-by-iteration output while retaining the wrapper's commands, output paths, and final NLL.
+- `--wrap-circular`: wrap arbitrary circular stimulus/response values modulo 360 before fitting. The equivalent endpoint `360` is accepted automatically without this option.
 - `--dry-run`: write the legacy input and print commands without fitting.
 
 ## Python API
@@ -141,7 +149,7 @@ result = run_pipeline(
 print(result.fits[0].cross_validation_loss)
 ```
 
-`run_pipeline` returns a `PipelineResult` containing the validated dataset summary, converted legacy dataset path, and one `FitResult` per requested p value. Each fit result includes the parsed cross-validation loss and paths to its loss file, parameter log, and optional circular diagnostic figure.
+`run_pipeline` returns a `PipelineResult` containing the validated dataset summary, converted legacy dataset path, and one `FitResult` per requested p value. Each fit result includes the parsed cross-validation loss and paths to its loss file, parameter log, and optional diagnostic figure.
 
 ## Outputs
 
@@ -157,9 +165,19 @@ The model scripts write losses and fitted parameters to:
 
 Each parameter log records `condition_ids` in sorted order. The entries in `sigma_logit` use that same order, so condition labels do not need to be valid tensor indices.
 
-The circular fitting scripts also write the latest fit diagnostic figure to `circular/figures/` during fitting.
+The circular and interval CSV fitting scripts also write the latest diagnostic figure to
+`circular/figures/` or `interval/figures/` during fitting. Each new checkpoint
+replaces the preceding figure for that fit. Circular figure generation can be
+disabled with `--plot-every 0`.
 
-The stdout from fitting is verbose by design; the compact result to compare across p values is the cross-validation loss in the generated `losses` file.
+After each fit, the wrapper prints the held-out cross-validation negative
+log-likelihood (NLL) and the full paths to its NLL loss file, parameter log, and
+diagnostic PDF (when enabled). The NLL is also the first line of the generated
+loss file. Lower NLL values are better when comparing fits evaluated on the
+same observations and fold.
+
+The runner's optimization output is verbose by design; look for the final
+`Cross-validation NLL:` line printed by the wrapper for the compact result.
 Most legacy runners assert if their expected log or loss file already exists. Move or delete the corresponding generated output before rerunning the exact same command.
 
 ## Demo: Reproduce de Gardelle et al.
@@ -249,4 +267,19 @@ python RunCircular_Free_CosineLoss.py \
   SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
 ```
 
-A reference CPU run completed normally and wrote a loss value of `44.991607666015625`.
+Because this command calls the runner directly, it does not print the compact
+output summary provided by the wrapper. Its NLL loss file, parameter log, and
+latest diagnostic PDF are written to `losses/`, `logs/CROSSVALID/`, and
+`figures/`, respectively. Their filenames begin with
+`RunCircular_Free_CosineLoss.py_` and include the input filename and fit
+settings; the first line of the loss file is the held-out cross-validation NLL.
+
+A reference CPU run completed normally with a loss of approximately `44.99`;
+small numerical differences can occur across library versions and hardware.
+
+## Questions
+
+Please do not hesitate at all to contact Michael Hahn at
+[mhahn@lst.uni-saarland.de](mailto:mhahn@lst.uni-saarland.de) with any
+questions. He is very happy to provide advice or help troubleshoot. You can
+also open a repository issue.

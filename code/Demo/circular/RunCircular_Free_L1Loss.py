@@ -11,7 +11,6 @@ import torch
 from torch.optim.lr_scheduler import ExponentialLR
 from l1Estimator import L1Estimator
 from getObservations import retrieveObservations
-from loadGardelle import *
 from matplotlib import rc
 from plotCircularFit import CircularFitPlotter
 from plotCircularFit import should_plot

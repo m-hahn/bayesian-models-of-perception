@@ -42,7 +42,7 @@ CONFIG = {
         "stimulus_include_max": True,
         "filename_template": "UserBehavior_{stem}_400_2_{conditions}_N{n}_UNIFORM_UNIFORM.txt",
         "loss_dir": "losses/Interval",
-        "writes_figures": False,
+        "writes_figures": True,
         "scripts": {
             "map": "RunInterval_Free_L0_Round2.py",
             "l1": "RunInterval_Free_L1_Round2.py",
@@ -104,6 +104,7 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--device", choices=["cpu", "cuda"], default=os.environ.get("BIAS_MODEL_DEVICE", "cpu"))
     parser.add_argument("--plot-every", type=int, default=1000, help="Write a circular fit figure every N iterations; use 0 to disable.")
+    parser.add_argument("--quiet", action="store_true", help="Hide verbose optimization output from the model runner.")
     parser.add_argument("--python", default=sys.executable)
     return parser.parse_args()
 
@@ -201,6 +202,14 @@ def load_rows(args, config):
                 if args.wrap_circular:
                     stimulus = stimulus % 360
                     response = response % 360
+                else:
+                    # The upper endpoint is the same point as zero on a circle.
+                    # Accept this common export convention without requiring users
+                    # to opt into wrapping arbitrary out-of-range values.
+                    if stimulus == 360:
+                        stimulus = 0.0
+                    if response == 360:
+                        response = 0.0
                 if not (0 <= stimulus < 360 and 0 <= response < 360):
                     raise ValueError(
                         f"Line {line_number}: circular stimulus/response must be in [0, 360)."
@@ -252,6 +261,7 @@ def _make_options(
     dry_run=False,
     device="cpu",
     plot_every=1000,
+    quiet=False,
     python_executable=None,
 ):
     if space not in CONFIG:
@@ -280,6 +290,7 @@ def _make_options(
         dry_run=dry_run,
         device=device,
         plot_every=plot_every,
+        quiet=quiet,
         python=python_executable or sys.executable,
     )
 
@@ -380,6 +391,9 @@ def run_variant(args, config, fit_name, p):
             f"Output already exists for p={p}. Use --overwrite to rerun: {loss_path} / {log_path}"
         )
 
+    if args.space == "circular" and args.plot_every == 0:
+        figure_path = None
+
     command = [
         args.python,
         script,
@@ -402,7 +416,13 @@ def run_variant(args, config, fit_name, p):
     mpl_config.mkdir(exist_ok=True)
     env.setdefault("MPLCONFIGDIR", str(mpl_config))
 
-    subprocess.run(command, cwd=basis_dir, env=env, check=True)
+    subprocess.run(
+        command,
+        cwd=basis_dir,
+        env=env,
+        check=True,
+        stdout=subprocess.DEVNULL if args.quiet else None,
+    )
     return loss_path, log_path, figure_path
 
 
@@ -427,11 +447,14 @@ def _execute_pipeline(args):
     fits = []
     for p in args.p:
         loss_path, log_path, figure_path = run_variant(args, config, fit_name, p)
-        print(f"Expected loss file: {loss_path}")
-        print(f"Expected parameter log: {log_path}")
+        output_label = "Expected" if args.dry_run else "Output"
+        print(f"{output_label} NLL loss file: {loss_path}")
+        print(f"{output_label} parameter log: {log_path}")
         if figure_path is not None:
-            print(f"Expected figure: {figure_path}")
+            print(f"{output_label} diagnostic figure: {figure_path}")
         cross_validation_loss = None if args.dry_run else read_cross_validation_loss(loss_path)
+        if cross_validation_loss is not None:
+            print(f"Cross-validation NLL: {cross_validation_loss}")
         fits.append(
             FitResult(
                 p=p,
@@ -462,6 +485,7 @@ def run_pipeline(
     dry_run=False,
     device="cpu",
     plot_every=1000,
+    quiet=False,
     python_executable=None,
 ):
     """Validate a CSV, run the requested fits, and return structured results."""
@@ -483,6 +507,7 @@ def run_pipeline(
         dry_run=dry_run,
         device=device,
         plot_every=plot_every,
+        quiet=quiet,
         python_executable=python_executable,
     )
     return _execute_pipeline(args)

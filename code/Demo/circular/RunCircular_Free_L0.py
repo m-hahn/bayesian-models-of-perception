@@ -10,7 +10,6 @@ import random
 import sys
 import torch
 from getObservations import retrieveObservations
-from loadGardelle import *
 from mapCircularEstimatorDebug import MAPCircularEstimator
 from matplotlib import rc
 from plotCircularFit import CircularFitPlotter
