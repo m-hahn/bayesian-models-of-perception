@@ -80,7 +80,7 @@ Circular data must use model coordinates in degrees on `[0, 360)`. Stimulus and 
 
 Interval data must use the interval `[0, 3]`. Stimulus and response values must be finite and inside that range.
 
-Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets. For a ready-to-run, real-size example, use the [N = 1000 simulated circular dataset](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt). It uses the legacy three-column format and runs directly with a model script, as shown in the [Direct Import Trial](#direct-import-trial).
+Tiny schema examples are in `input/example_circular.csv` and `input/example_interval.csv`; they are only format templates, not meaningful fitting datasets. For a ready-to-run, real-size example, use the [N = 1000 simulated circular dataset](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt). It runs directly with a model script, as shown in the [Direct Import Trial](#direct-import-trial).
 
 The notebook additionally uses the included
 [N = 5000 circular dataset with five noise levels](circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_8_12345_N5000_UNIFORM_STEEPPERIODIC.txt)
@@ -122,14 +122,14 @@ python run_behavioral_pipeline.py \
 
 Useful options:
 
-- `--grid`: override the default grid size, `180` for circular and `400` for interval. For circular fits, `180` is the number of grid cells, not a `[0, 180]` stimulus-space bound; the same is true of `_180_` in legacy circular filenames.
+- `--grid`: override the default grid size, `180` for circular and `400` for interval.
 - `--reg-weight`: regularization weight, default `10.0`.
 - `--fold`: held-out fold, default `0`.
 - `--device cpu` or `--device cuda`: passed as `BIAS_MODEL_DEVICE`.
 - `--plot-every`: write a circular fit figure every N fitting iterations, default `1000`; use `0` to disable.
 - `--quiet`: hide the model runner's iteration-by-iteration output while retaining the wrapper's commands, output paths, and final NLL.
 - `--wrap-circular`: wrap arbitrary circular stimulus/response values modulo 360 before fitting. The equivalent endpoint `360` is accepted automatically without this option.
-- `--dry-run`: write the legacy input and print commands without fitting.
+- `--dry-run`: write the input and print commands without fitting.
 
 ## Python API
 
@@ -190,7 +190,7 @@ same observations and fold.
 
 The runner's optimization output is verbose by design; look for the final
 `Cross-validation NLL:` line printed by the wrapper for the compact result.
-Most legacy runners assert if their expected log or loss file already exists. Move or delete the corresponding generated output before rerunning the exact same command.
+Most runners refuse to run if their expected log or loss file already exists. Move or delete the corresponding generated output before rerunning the exact same command.
 
 ## Demo: Fit on Orientation data from de Gardelle et al.
 
