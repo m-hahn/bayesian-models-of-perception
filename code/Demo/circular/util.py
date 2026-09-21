@@ -99,6 +99,26 @@ def computeCircularMeanWeighted(responses_, weights=None):
       return M
 
 
+def computeCircularPosteriorMode(posterior, grid):
+      """Return a sub-grid MAP estimate for each column of a circular posterior."""
+      maxima = posterior.argmax(dim=0)
+      columns = torch.arange(posterior.size(1), device=posterior.device)
+      log_posterior = posterior.clamp_min(torch.finfo(posterior.dtype).tiny).log()
+      left = log_posterior[(maxima - 1) % posterior.size(0), columns]
+      center = log_posterior[maxima, columns]
+      right = log_posterior[(maxima + 1) % posterior.size(0), columns]
+      curvature = left - 2 * center + right
+      has_curvature = curvature.abs() > torch.finfo(posterior.dtype).eps
+      safe_curvature = torch.where(has_curvature, curvature, torch.ones_like(curvature))
+      offset = torch.where(
+          has_curvature,
+          0.5 * (left - right) / safe_curvature,
+          torch.zeros_like(curvature),
+      ).clamp(-0.5, 0.5)
+      grid_step = 360.0 / posterior.size(0)
+      return torch.remainder(grid[maxima] + offset * grid_step, 360.0)
+
+
 
 
 def computeCircularMean(responses_):
@@ -318,4 +338,3 @@ def bringCircularBiasCloseToZero(y_set):
    y_set = torch.where(y_set.abs() < 180, y_set, torch.where(y_set1.abs() < 180, y_set1, y_set2))
    assert (y_set.abs() <= 180).all()
    return y_set
-

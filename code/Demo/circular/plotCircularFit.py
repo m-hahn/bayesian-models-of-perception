@@ -92,9 +92,9 @@ class CircularFitPlotter:
 
         if self.x_set:
             x_values = self.grid[self.x_set]
-            self.axis[5].plot(x_values, _half_bias(empirical_bias), color=color, marker=".", linewidth=1)
+            self.axis[5].scatter(x_values, _half_bias(empirical_bias), color=color, s=10)
             if empirical_sd is not None:
-                label = "human" if not self._has_variability_legend else None
+                label = "data" if not self._has_variability_legend else None
                 self.axis[6].plot(x_values, _half_bias(empirical_sd), color=color, marker=".", linestyle="", label=label)
         if estimate_sd is not None:
             label = "model" if not self._has_variability_legend else None

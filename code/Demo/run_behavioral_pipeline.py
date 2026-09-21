@@ -565,6 +565,100 @@ def plot_errors_by_condition(input_csv, space):
     return figure, axes
 
 
+def plot_loss_function_nll(fits, reference_p, title=None):
+    """Plot delta NLL in the style of the PNAS paper's Figure 4 code."""
+
+    import matplotlib.pyplot as plt
+
+    if reference_p not in fits:
+        raise ValueError(f"reference_p={reference_p} is not present in fits.")
+
+    p_values = sorted(fits)
+    reference_nll = fits[reference_p].cross_validation_loss
+    delta_nll = [fits[p].cross_validation_loss - reference_nll for p in p_values]
+
+    figure, axis = plt.subplots(figsize=(4.2, 3.6), layout="constrained")
+    axis.plot(p_values, delta_nll, color="gray", linewidth=1)
+    axis.scatter(p_values, delta_nll, color="gray", zorder=3)
+    axis.axhline(0, color="gray", linestyle="dotted", linewidth=1)
+    axis.set(
+        xlabel="Exponent",
+        ylabel=r"$\Delta$ NLL",
+        title=title,
+        xticks=p_values,
+    )
+    axis.spines["top"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+
+    ymin, ymax = axis.get_ylim()
+    axis.vlines(
+        reference_p,
+        ymin,
+        ymax,
+        color="gray",
+        linestyle="dotted",
+        linewidth=1,
+    )
+    axis.set_ylim(ymin, ymax)
+    return figure, axis
+
+
+def plot_cross_validated_loss_function_nll(fits_by_p, title=None):
+    """Plot mean paired delta NLL with standard errors across folds."""
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    if not fits_by_p:
+        raise ValueError("fits_by_p must contain at least one loss exponent.")
+
+    p_values = sorted(fits_by_p)
+    losses_by_p = {}
+    fold_ids = None
+    for p in p_values:
+        losses_for_p = {fit.fold: fit.cross_validation_loss for fit in fits_by_p[p]}
+        if any(value is None for value in losses_for_p.values()):
+            raise ValueError(f"Missing cross-validation NLL for p={p}.")
+        if fold_ids is None:
+            fold_ids = sorted(losses_for_p)
+        elif sorted(losses_for_p) != fold_ids:
+            raise ValueError("Every loss exponent must have results for the same folds.")
+        losses_by_p[p] = np.asarray([losses_for_p[fold] for fold in fold_ids])
+
+    if len(fold_ids) < 2:
+        raise ValueError("At least two folds are required for cross-fold error bars.")
+
+    reference_p = min(p_values, key=lambda p: losses_by_p[p].mean())
+    paired_deltas = np.stack(
+        [losses_by_p[p] - losses_by_p[reference_p] for p in p_values]
+    )
+    mean_deltas = paired_deltas.mean(axis=1)
+    standard_errors = paired_deltas.std(axis=1, ddof=0) / math.sqrt(len(fold_ids))
+
+    figure, axis = plt.subplots(figsize=(4.2, 3.6), layout="constrained")
+    axis.plot(p_values, mean_deltas, color="gray", linewidth=0.75)
+    axis.scatter(p_values, mean_deltas, color="gray", s=18, zorder=3)
+    axis.errorbar(
+        p_values,
+        mean_deltas,
+        yerr=standard_errors,
+        color="gray",
+        fmt="none",
+        linewidth=0.75,
+        capsize=3,
+    )
+    axis.axhline(0, color="gray", linestyle="dotted", linewidth=1)
+    axis.set(
+        xlabel="Exponent",
+        ylabel=r"$\Delta$ NLL",
+        title=title,
+        xticks=p_values,
+    )
+    axis.spines["top"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    return figure, axis
+
+
 def _prepare_included_example(source_name, output_name):
     source_path = ROOT / "circular" / "logs" / "SIMULATED_REPLICATE" / source_name
     output_dir = ROOT / "input" / "uploads"

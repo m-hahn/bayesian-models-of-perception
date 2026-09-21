@@ -20,6 +20,7 @@ from util import MakeZeros
 from util import computeCenteredMean
 from util import computeCircularMean
 from util import computeCircularMeanWeighted
+from util import computeCircularPosteriorMode
 from util import computeCircularSD
 from util import computeCircularSDWeighted
 from util import makeGridIndicesCircular
@@ -250,7 +251,7 @@ def computeBias(stimulus_, sigma_logit, prior, volumeElement, n_samples=100, sho
 
      bayesianEstimate_avg_byStimulus = torch.where((bayesianEstimate_avg_byStimulus-grid).abs()<180, bayesianEstimate_avg_byStimulus, torch.where(bayesianEstimate_avg_byStimulus > 180, bayesianEstimate_avg_byStimulus-360, bayesianEstimate_avg_byStimulus+360))
      assert float(((bayesianEstimate_avg_byStimulus-grid).abs()).max()) <= 180, float(((bayesianEstimate_avg_byStimulus-grid).abs()).max())
-     posteriorMaxima = grid[posterior.argmax(dim=0)]
+     posteriorMaxima = computeCircularPosteriorMode(posterior, grid)
      posteriorMaxima = computeCircularMeanWeighted(posteriorMaxima.unsqueeze(1), likelihoods)
      encodingBias = computeCircularMeanWeighted(grid.unsqueeze(1), likelihoods)
      attraction = (posteriorMaxima-encodingBias)
