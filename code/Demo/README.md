@@ -190,7 +190,7 @@ The runner's optimization output is verbose by design; look for the final
 `Cross-validation NLL:` line printed by the wrapper for the compact result.
 Most legacy runners assert if their expected log or loss file already exists. Move or delete the corresponding generated output before rerunning the exact same command.
 
-## Demo: Reproduce de Gardelle et al.
+## Demo: Fit on Orientation data from de Gardelle et al.
 
 The de Gardelle et al. circular dataset is not included. It is publicly available; after obtaining it, place the data file at `circular/data/GARDELLE/data.txt`.
 
@@ -213,7 +213,7 @@ A reference CPU run saved:
 - saved checkpoint iteration: `13500`
 - minimum checkpointed cross-validation loss: `991.9083251953125` at iteration `1500`
 
-At p=0 and p=1:
+Analogous runs work for p>2 (replace "8" by p). At p=0 and p=1:
 
 ```bash
 cd Demo/circular
@@ -222,17 +222,17 @@ python RunGardelle_FreePrior_L1Loss.py 1 0 10.0 180
 ```
 
 
-## Demo: Reproduce Remington et al.
+## Demo: Fit on time interval data from Remington et al.
 
 The  Remington et al. interval-data runner is included as `interval/RunRemington_Free.py`.
 
-The Remington et al. Ready-Set-Go gain-1 behavioral files are not included. They are publicly available; after obtaining them, place them under:
+The Remington et al. behavioral files are not included. They are publicly available; after obtaining them, place them under:
 
 ```text
 interval/data/REMINGTON/Datafiles/
 ```
 
-The loader expects files matching `RSG_*_100.mat`, with `sample`, `response`, `gain`, and `correct` fields.
+The loader expects files matching `RSG_*_100.mat`, with `sample`, `response`, `gain`, and `correct` fields. We focus on the Ready-Set-Go gain=1 trials. 
 
 Run the p = 2, fold-0 reproduction from `Demo/interval`:
 
@@ -253,7 +253,7 @@ A reference CPU run saved:
 - saved checkpoint iteration: `4500`
 - minimum checkpointed cross-validation loss: `2741.94140625` at iteration `4500`
 
-The p = 0 and p = 1 native Remington controls are:
+Analogous runs work for p>2 (replace "2" by p). At p = 0 and p = 1, run:
 
 ```bash
 cd Demo/interval
@@ -277,8 +277,7 @@ python RunCircular_Free_CosineLoss.py \
   SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt
 ```
 
-Because this command calls the runner directly, it does not print the compact
-output summary provided by the wrapper. Its NLL loss file, parameter log, and
+The NLL loss file, parameter log, and
 latest diagnostic PDF are written to `losses/`, `logs/CROSSVALID/`, and
 `figures/`, respectively. Their filenames begin with
 `RunCircular_Free_CosineLoss.py_` and include the input filename and fit
