@@ -13,15 +13,14 @@
   collecting dependencies, and summarizing legacy cross-validation results.
 
 The model runners and utilities used by the demo come from the
-[`code/` directory of the upstream `identifiability-bayesian-models`
-repository](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code),
-associated with Hahn & Wei (2024).
+[`code/` directory of the  `identifiability-bayesian-models`
+repository](https://github.com/m-hahn/identifiability-bayesian-models/tree/main/code)
+associated with Hahn & Wei (Nat Neuro 2024).
 
 ## Requirements
 
-The code was developed with Python 3.9.18. The pinned dependencies are listed
-in [`requirements.txt`](requirements.txt): PyTorch, Matplotlib, SciPy, and
-NumPy.
+The code was developed with Python 3.9.18. Dependencies are listed
+in [`requirements.txt`](requirements.txt).
 
 From this directory, a minimal setup is:
 
@@ -59,9 +58,9 @@ python run_behavioral_pipeline.py --help
 The small files in [`Demo/input/`](Demo/input/) illustrate the required CSV
 format only. For a ready-to-run, real-size example, use the
 [N = 1000 simulated circular dataset](Demo/circular/logs/SIMULATED_REPLICATE/SimulateSynthetic_Parameterized_OtherNoiseLevels_Grid_VarySize.py_180_2_5_N1000_UNIFORM_STEEPPERIODIC.txt),
-which uses the legacy three-column format and is documented in the demo's
+documented in the demo's
 [Direct Import Trial](Demo/README.md#direct-import-trial). Otherwise, provide
-your own substantive CSV dataset.
+your own CSV dataset.
 
 ## Questions
 
