@@ -356,6 +356,8 @@ def model(grid):
    optim.step()
    if iteration % 10 == 0:
      print(iteration, loss, init_parameters["sigma_logit"], init_parameters["mixture_logit"], init_parameters["log_motor_var"], torch.exp(-init_parameters["sigma2_stimulus"]))
+     if os.environ.get("BIAS_MODEL_PROGRESS") == "1":
+       print(f"BIAS_MODEL_PROGRESS\t{iteration}\t{loss.item()}", flush=True)
 
    if iteration % 500 == 0 and iteration > 0:
        lossesBy500.append(float(loss))

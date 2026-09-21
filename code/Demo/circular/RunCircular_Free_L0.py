@@ -370,6 +370,8 @@ def model(grid):
    averageLossOver100[-1] += float(loss) / 100
    if iteration % 10 == 0:
      print(iteration, averageLossOver100[-3:-1], loss, init_parameters["sigma_logit"], "mixture_logit", init_parameters["mixture_logit"], "log_motor_var", init_parameters["log_motor_var"], learning_rate, sys.argv)
+     if os.environ.get("BIAS_MODEL_PROGRESS") == "1":
+       print(f"BIAS_MODEL_PROGRESS\t{iteration}\t{loss.item()}", flush=True)
    if iteration % 100 == 0 and iteration > 0:
        averageLossOver100.append(0)
 

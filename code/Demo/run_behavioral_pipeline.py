@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 
 
 ROOT = Path(__file__).resolve().parent
+PROGRESS_PREFIX = "BIAS_MODEL_PROGRESS"
 
 
 CONFIG = {
@@ -384,6 +385,67 @@ def expected_outputs(config, script, fit_name, p, fold, reg_weight, grid):
     return loss_path, log_path, figure_path
 
 
+def _run_with_progress(command, *, cwd, env, p, fold):
+    """Run a quiet fit while showing one updating progress line."""
+
+    notebook_display = None
+    try:
+        from IPython import get_ipython
+        from IPython.display import display
+
+        shell = get_ipython()
+        if shell is not None and shell.__class__.__name__ != "TerminalInteractiveShell":
+            notebook_display = display
+    except ImportError:
+        pass
+
+    display_handle = None
+    terminal_line_started = False
+    recent_output = []
+
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert process.stdout is not None
+
+    for line in process.stdout:
+        stripped = line.rstrip()
+        if stripped.startswith(f"{PROGRESS_PREFIX}\t"):
+            _, iteration, train_loss = stripped.split("\t", 2)
+            message = (
+                f"Fitting p={p}, fold={fold}: iteration {iteration}, "
+                f"train loss {float(train_loss):.6g}"
+            )
+            if notebook_display is not None:
+                content = {"text/plain": message}
+                if display_handle is None:
+                    display_handle = notebook_display(
+                        content, raw=True, display_id=True
+                    )
+                else:
+                    display_handle.update(content, raw=True)
+            else:
+                print(f"\r{message}", end="", flush=True)
+                terminal_line_started = True
+        else:
+            recent_output.append(line)
+            recent_output = recent_output[-50:]
+
+    return_code = process.wait()
+    if terminal_line_started:
+        print()
+    if return_code:
+        if recent_output:
+            print("".join(recent_output), file=sys.stderr, end="")
+        raise subprocess.CalledProcessError(return_code, command)
+
+
 def run_variant(args, config, fit_name, p):
     basis_dir = config["basis_dir"]
     grid = args.grid if args.grid is not None else config["default_grid"]
@@ -428,17 +490,21 @@ def run_variant(args, config, fit_name, p):
     env = os.environ.copy()
     env["BIAS_MODEL_DEVICE"] = args.device
     env["BIAS_MODEL_PLOT_EVERY"] = str(args.plot_every)
+    env["BIAS_MODEL_PROGRESS"] = "1" if args.quiet else "0"
     mpl_config = ROOT / ".matplotlib"
     mpl_config.mkdir(exist_ok=True)
     env.setdefault("MPLCONFIGDIR", str(mpl_config))
 
-    subprocess.run(
-        command,
-        cwd=basis_dir,
-        env=env,
-        check=True,
-        stdout=subprocess.DEVNULL if args.quiet else None,
-    )
+    if args.quiet:
+        _run_with_progress(
+            command,
+            cwd=basis_dir,
+            env=env,
+            p=p,
+            fold=args.fold,
+        )
+    else:
+        subprocess.run(command, cwd=basis_dir, env=env, check=True)
     return loss_path, log_path, figure_path
 
 
