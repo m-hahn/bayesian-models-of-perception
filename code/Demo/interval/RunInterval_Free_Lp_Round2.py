@@ -463,6 +463,8 @@ def model(grid):
    averageLossOver100[-1] += float(loss) / 100
    if iteration % 10 == 0:
      print("Run for ", iteration, "Iterations.", averageLossOver100[-3:-1], loss.item(), init_parameters["sigma_logit"].detach().cpu().numpy().tolist(), "mixture_logit", init_parameters["mixture_logit"].detach().cpu().numpy().tolist(), "log_motor_var", init_parameters["log_motor_var"].detach().cpu().numpy().tolist(), learning_rate, sys.argv)
+     if os.environ.get("BIAS_MODEL_PROGRESS") == "1":
+       print(f"BIAS_MODEL_PROGRESS\t{iteration}\t{loss.item()}", flush=True)
    if iteration % 100 == 0 and iteration > 0:
        averageLossOver100.append(0)
    ## Part: Monitor convergence of losses, save fitted results, and adjust step size
